@@ -59,15 +59,17 @@ repos:
         language: system
         stages: ["pre-commit"]
 
+  # Keep getting error about source flag missing so disabling
   # - repo: https://github.com/gitleaks/gitleaks
   #   rev: v8.19.0
   #   hooks:
   #     - id: gitleaks
   #       args: ["--verbose", "--source", "."]
-# enforce conventional commit messages
-# -   repo: https://github.com/compilerla/conventional-pre-commit
-#     rev: 'v2.4.0'
-#     hooks:
-#       - id: conventional-pre-commit
-#         stages: [commit-msg]
-#         args: [refactor, chore, build, ci, docs, feat, fix, test, perf, style, BREAKING_CHANGE]
+
+  # enforce conventional commit messages
+  # -   repo: https://github.com/compilerla/conventional-pre-commit
+  #     rev: 'v2.4.0'
+  #     hooks:
+  #       - id: conventional-pre-commit
+  #         stages: [commit-msg]
+  #         args: [refactor, chore, build, ci, docs, feat, fix, test, perf, style, BREAKING_CHANGE]
