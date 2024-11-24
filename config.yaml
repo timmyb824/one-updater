@@ -1,0 +1,102 @@
+package_managers:
+  apt:
+    enabled: true
+    commands:
+      update: ["sudo", "apt-get", "update"]
+      upgrade: ["sudo", "apt-get", "upgrade", "-y"]
+
+  basher:
+    enabled: true
+    commands:
+      update: ["bash", "-c", "cd ~/.basher && git pull"]
+      upgrade: ["basher", "upgrade"]
+
+  brew:
+    enabled: true
+    commands:
+      update: ["brew", "update"]
+      upgrade: ["brew", "upgrade"]
+
+  cargo:
+    enabled: true
+    commands:
+      update: ["rustup", "update"]
+      upgrade: [] # Empty list indicates upgrade is supported but packages are handled internally
+
+  gem:
+    enabled: true
+    commands:
+      update: ["gem", "update", "--system"] # Updates RubyGems itself
+      upgrade: ["gem", "update"] # Updates all installed gems
+
+  gh-cli:
+    enabled: true
+    commands:
+      update: []
+      upgrade: ["gh", "extension", "upgrade", "--all"]
+
+  go:
+    enabled: true
+    commands:
+      update: [] # Go itself doesn't need updating
+      upgrade: [] # Upgrade handled internally by code
+
+  krew:
+    enabled: true
+    commands:
+      update: ["kubectl-krew", "update"]
+      upgrade: ["kubectl-krew", "upgrade"]
+
+  micro:
+    enabled: true
+    commands:
+      update: ["micro", "-plugin", "update"]
+      upgrade: ["micro", "-plugin", "update"]
+
+  npm:
+    enabled: true
+    commands:
+      update: ["npm", "update", "-g"]
+      upgrade: ["npm", "update", "-g"]
+
+  pip:
+    enabled: true
+    virtualenv: null # Set to virtualenv path if needed
+    pyenv: null # Set to pyenv version if needed
+    commands:
+      update: ["pip", "install", "--upgrade", "pip"]
+      upgrade: ["pip", "list", "--outdated", "--format=json"] # Will be handled specially in code
+
+  pipx:
+    enabled: true
+    commands:
+      update: []
+      upgrade: ["pipx", "upgrade-all"]
+
+  pkgx:
+    enabled: true
+    commands:
+      update: []
+      upgrade: ["pkgx", "mash", "pkgx/cache", "upgrade"]
+
+  snap:
+    enabled: false
+    commands:
+      update: ["snap", "refresh"]
+      upgrade: ["snap", "refresh"]
+
+  tldr:
+    enabled: true
+    commands:
+      update: ["tldr", "--update"]
+      upgrade: ["tldr", "--update"]
+
+  vagrant:
+    enabled: true
+    commands:
+      update: ["vagrant", "plugin", "update"]
+      upgrade: []
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(levelname)s - %(message)s"

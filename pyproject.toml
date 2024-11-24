@@ -1,0 +1,69 @@
+[tool.poetry]
+name = "one-updater"
+version = "0.1.0"
+description = "One tool many packages"
+authors = ["Tim Bryant <timothybryant3@gmail.com>"]
+readme = "README.md"
+packages = [{include = "one_updater", from = "."}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.7"
+pyyaml = "^6.0.2"
+rich = "^13.9.4"
+
+[tool.poetry.group.dev.dependencies]
+autopep8 = "^2.3.1"
+black = "^24.8.0"
+pytest = "^8.3.3"
+pre-commit = "^3.8.0"
+isort = "^5.13.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".", "one_updater"
+]
+filterwarnings = [
+    "error",
+    "ignore::RuntimeWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.poetry.scripts]
+one-updater = "one_updater.cli:cli"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "build",
+    "chore",
+    "refactor",
+    "fix",
+    "perf",
+    "style",
+    "docs",
+    "ci",
+    "test",
+    "feat",
+    ":boom:",
+    "BREAKING_CHANGE",
+]
+major_tags = [":boom:", "BREAKING_CHANGE"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "style", "docs", "ci", "test", "refactor", "chore", "build"]
+
+[tool.semantic_release]
+version_toml = [
+    "pyproject.toml:tool.poetry.version",
+]
+branch = "main"
+changelog_file = "CHANGELOG.md"
+build_command = "poetry build"
+dist_path = "dist/"
+upload_to_vcs_release = true
+upload_to_pypi = false
+remove_dist = false
+patch_without_tag = true

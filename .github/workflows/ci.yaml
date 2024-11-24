@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  Test:
+    environment:
+      name: production
+    runs-on: ubuntu-latest
+    name: Build and Test
+    # env:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.2"
+
+      - name: Install poetry
+        shell: bash
+        run: |
+          python -m pip install poetry==1.5.1
+
+      - name: Configure poetry
+        shell: bash
+        run: |
+          python -m poetry config virtualenvs.in-project true
+
+      - name: Cache the virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ./.venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m poetry install --no-root
+
+      # - name: Code quality checks
+      #   shell: bash
+      #   run: |
+      #     poetry run python -m black --check .
+
+      # - name: Run unit tests
+      #   shell: bash
+      #   run: |
+      #     poetry run python -m pytest -xvvv tests/
+
+      - name: Test run the tool
+        if: success()
+        shell: bash
+        run: |
+          export PYTHONPATH="${PYTHONPATH}:./one_updater"
+          python -m poetry run python one_updater/cli.py --version
+
+  Release:
+    needs: Test
+    environment:
+      name: production
+      url: https://pypi.org/project/one-updater/
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Release
+    concurrency: Release
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.2"
+
+      - name: Install poetry
+        shell: bash
+        run: |
+          python -m pip install poetry==1.5.1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m poetry install --no-root
+
+      - name: Prepare package for release
+        id: package_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          poetry run semantic-release version
+          poetry run semantic-release changelog
+          poetry run semantic-release publish
+
+      - name: Check if dist folder has contents
+        id: check_dist
+        run: |
+          if [ -d "dist/" ] && [ "$(ls -A dist/)" ]; then
+            echo "DIST_EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "DIST_EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to TestPyPI
+        id: test_publish
+        if: steps.check_dist.outputs.DIST_EXISTS == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Test install from TestPyPI
+        if: steps.test_publish.outcome == 'success'
+        shell: bash
+        id: test_install
+        run: |
+          python -m pip install \
+          --index-url https://test.pypi.org/simple/ \
+          --extra-index-url https://pypi.org/simple \
+          one-updater
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        if: steps.test_install.outcome == 'success'
