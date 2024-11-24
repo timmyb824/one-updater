@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.3 (2024-11-24)
+
+### Chores
+
+- Update .gitignore to remove build and dist directories
+  ([`f8aa478`](https://github.com/timmyb824/one-updater/commit/f8aa47875e48c235797f769f1f8cc5ebd31a1f22))
+
+
 ## v0.0.2 (2024-11-24)
 
 ### Code Style
