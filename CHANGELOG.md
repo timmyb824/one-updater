@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.2 (2024-11-24)
+
+### Code Style
+
+- Update poetry version to 1.8.4 and comment out unnecessary pre-commit hooks
+  ([`a381fba`](https://github.com/timmyb824/one-updater/commit/a381fba77ed9efe02fce38e3f0b5263d0429b818))
+
+
 ## v0.0.1 (2024-11-24)
 
 ### Build System
