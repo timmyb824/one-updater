@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.4 (2024-11-25)
+
+### Bug Fixes
+
+- Update environment variable name to match secrets configuration
+  ([`8942c88`](https://github.com/timmyb824/one-updater/commit/8942c889ea25037d3a2ca28a6fbbae1bbb6768c7))
+
+
 ## v0.0.3 (2024-11-24)
 
 ### Chores

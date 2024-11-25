@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "one-updater"
-version = "0.0.3"
+version = "0.0.4"
 description = "One tool many packages"
 authors = ["Tim Bryant <timothybryant3@gmail.com>"]
 readme = "README.md"
