@@ -152,7 +152,8 @@ def cli(ctx, config):
         config = os.path.abspath(config)
     ctx.obj["config_path"] = config or get_default_config_path()
 
-    if ctx.invoked_subcommand == "init":
+    # Skip config checks for commands that don't need it
+    if ctx.invoked_subcommand in ["init", "version"]:
         return
 
     if not os.path.exists(ctx.obj["config_path"]):
@@ -180,16 +181,15 @@ def init(config):
 
 
 @cli.command("version", help="Show version information")
-@common_options
-def show_version(config):
+def show_version():
     """Show version information."""
     try:
         from importlib.metadata import version
 
         one_updater_version = version("one-updater")
-        print(f"one-updater version {one_updater_version}")
+        console.print(f"[blue]one-updater version {one_updater_version}[/blue]")
     except ImportError:
-        print("importlib.metadata not found")
+        console.print("[red]Error: Could not determine version[/red]")
 
 
 @cli.command()
