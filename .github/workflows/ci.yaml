@@ -97,7 +97,7 @@ jobs:
         id: package_release
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -130,6 +130,12 @@ jobs:
           --index-url https://test.pypi.org/simple/ \
           --extra-index-url https://pypi.org/simple \
           one-updater
+
+      # show contents of dist folder
+      - name: List files in dist folder
+        if: steps.test_install.outcome == 'success'
+        run: |
+          ls dist -la
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
