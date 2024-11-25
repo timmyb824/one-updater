@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v0.0.9 (2024-11-25)
+
+### Code Style
+
+- Update command to get version in CI workflow
+  ([`e1dcd4c`](https://github.com/timmyb824/one-updater/commit/e1dcd4c3de673649e6f7a06f1415a034ce70147b))
+
+### Documentation
+
+- Update command 'version' help message
+  ([`a79a751`](https://github.com/timmyb824/one-updater/commit/a79a75161d89ce6ce3b5ef437185c93c3924d06c))
+
+### Refactoring
+
+- Replace version option with version command
+  ([`444a45d`](https://github.com/timmyb824/one-updater/commit/444a45d0b9464e2d06abba57683790d14513711d))
+
+
 ## v0.0.8 (2024-11-25)
 
 ### Chores
