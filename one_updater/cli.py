@@ -6,7 +6,6 @@ import yaml
 from rich.console import Console
 from rich.logging import RichHandler
 
-from one_updater import __version__
 from one_updater.package_managers.base import PackageManager
 from one_updater.package_managers.registry import PackageManagerRegistry
 
@@ -72,13 +71,25 @@ def run_package_manager_action(
 
 @click.group()
 @click.option("--config", "-c", default="config.yaml", help="Path to config file")
-@click.version_option(version=__version__, prog_name="one-updater")
 @click.pass_context
 def cli(ctx, config):
     """One Update - Update all your package managers with one command."""
     ctx.ensure_object(dict)
     ctx.obj["config"] = load_config(config)
     setup_logging(ctx.obj["config"])
+
+
+@cli.command("version")
+def show_version():
+    try:
+        from importlib.metadata import (  # pylint: disable=import-outside-toplevel
+            version,
+        )
+
+        one_updater_version = version("one-updater")
+        print(f"one-updater version {one_updater_version}")
+    except ImportError:
+        print("importlib.metadata not found")
 
 
 @cli.command()
