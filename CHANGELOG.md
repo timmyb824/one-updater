@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.2.0 (2024-11-25)
+
+### Features
+
+- Add support for entering sudo credentials and pausing status bar
+  ([`e231016`](https://github.com/timmyb824/one-updater/commit/e2310162808e307121f223a7826850c070adc36d))
+
+
 ## v0.1.0 (2024-11-25)
 
 ### Bug Fixes
