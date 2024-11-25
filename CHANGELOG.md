@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.1.0 (2024-11-25)
+
+### Bug Fixes
+
+- Remove dependancy on the config file when running the version command
+  ([`7d0f917`](https://github.com/timmyb824/one-updater/commit/7d0f91741b92c1a9d83074fae32a472eaba2720d))
+
+### Features
+
+- Add init command to create new config file and load default conifg
+  ([`5fb9466`](https://github.com/timmyb824/one-updater/commit/5fb9466f8978d91c79e812502f92fbea056ed4dc))
+
+
 ## v0.0.9 (2024-11-25)
 
 ### Code Style
