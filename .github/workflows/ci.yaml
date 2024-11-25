@@ -131,10 +131,10 @@ jobs:
           --extra-index-url https://pypi.org/simple \
           one-updater
 
-      - name: List files in dist folder
+      - name: Clean up attestation files
         if: steps.test_install.outcome == 'success'
         run: |
-          ls -A dist
+          rm -f dist/*.publish.attestation
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
