@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.7 (2024-11-25)
+
+### Bug Fixes
+
+- Update GH_TOKEN to use secrets.GITHUB_TOKEN
+  ([`ea899a3`](https://github.com/timmyb824/one-updater/commit/ea899a338b9b6595ef622e8d0004571e47268ec7))
+
+
 ## v0.0.6 (2024-11-25)
 
 ### Code Style
