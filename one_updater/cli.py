@@ -102,7 +102,7 @@ def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
 
 
 def run_package_manager_action(
-    name: str, cfg: dict, action_name: str, action_func, verbose: bool
+    name: str, cfg: dict, action_name: str, action_func, verbose: bool, status=None
 ) -> None:
     """Run a package manager action (update or upgrade) with proper console output."""
     if not cfg.get("enabled", True):
@@ -117,8 +117,9 @@ def run_package_manager_action(
         )
         return
 
-    # Set verbose mode for this specific package manager
+    # Set verbose mode and status for this specific package manager
     cfg["verbose"] = verbose
+    cfg["status"] = status
 
     if pm := get_package_manager(name, cfg):
         # strip e at end of action_name if it exists
@@ -217,7 +218,7 @@ def update(ctx, config, manager, verbose):
     with console.status("[bold green]Updating package managers...") as status:
         for name, cfg in package_managers.items():
             run_package_manager_action(
-                name, cfg, "update", lambda pm: pm.update(), verbose
+                name, cfg, "update", lambda pm: pm.update(), verbose, status
             )
 
 
@@ -246,7 +247,7 @@ def upgrade(ctx, config, manager, verbose):
     with console.status("[bold green]Upgrading packages...") as status:
         for name, cfg in package_managers.items():
             run_package_manager_action(
-                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose
+                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose, status
             )
 
 
