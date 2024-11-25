@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.6 (2024-11-25)
+
+### Code Style
+
+- Update file listing command in CI workflow to ignore hidden files
+  ([`a0c4315`](https://github.com/timmyb824/one-updater/commit/a0c431550447211411119ce0d8c9f59d4180a74a))
+
+
 ## v0.0.5 (2024-11-25)
 
 ### Continuous Integration
