@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.8 (2024-11-25)
+
+### Chores
+
+- Clean up attestation files in CI workflow
+  ([`8166eb2`](https://github.com/timmyb824/one-updater/commit/8166eb298f2069e9d9ec8e70d73bbe7b2a485741))
+
+
 ## v0.0.7 (2024-11-25)
 
 ### Bug Fixes
