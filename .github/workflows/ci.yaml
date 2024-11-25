@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           export PYTHONPATH="${PYTHONPATH}:./one_updater"
-          python -m poetry run python one_updater/cli.py --version
+          python -m poetry run python one_updater/cli.py version
 
   Release:
     needs: Test
