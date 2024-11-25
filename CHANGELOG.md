@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.0.5 (2024-11-25)
+
+### Continuous Integration
+
+- Add step to list files in dist folder before publishing to PyPI
+  ([`278ddd9`](https://github.com/timmyb824/one-updater/commit/278ddd95a79441d56dbaa24feac30cb697125ff7))
+
+
 ## v0.0.4 (2024-11-25)
 
 ### Bug Fixes
