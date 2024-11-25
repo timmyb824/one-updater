@@ -1,4 +1,8 @@
+import importlib.resources as resources
 import logging
+import os
+import shutil
+import sys
 from typing import Optional
 
 import click
@@ -21,14 +25,71 @@ def setup_logging(config: dict):
     )
 
 
-def load_config(config_path: str) -> dict:
-    """Load configuration from YAML file."""
+def get_default_config_path():
+    """Get the default config path."""
+    config_dir = os.path.expanduser("~/.config/one-updater")
+    return os.path.join(config_dir, "config.yaml")
+
+
+def load_config(config_path: Optional[str] = None):
+    """Load configuration from file.
+
+    Args:
+        config_path: Optional path to config file. If not provided,
+                    uses default location (~/.config/one-updater/config.yaml)
+
+    Returns:
+        dict: Loaded configuration
+    """
+    config_path = config_path or get_default_config_path()
+
+    if not os.path.exists(config_path):
+        console.print(
+            f"[red]Config file not found: {config_path}\nRun 'one-updater init' to create a new configuration file.[/red]"
+        )
+        sys.exit(1)
+
     try:
         with open(config_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
     except Exception as e:
         console.print(f"[red]Error loading config file: {e}[/red]")
         return {}
+
+
+def init_config(config_path: Optional[str] = None):
+    """Initialize a new configuration file.
+
+    Args:
+        config_path: Optional path to create config file. If not provided,
+                    uses default location (~/.config/one-updater/config.yaml)
+    """
+    if not config_path:
+        raise ValueError("config_path must be provided")
+
+    config_dir = os.path.dirname(config_path)
+
+    # Create config directory if it doesn't exist
+    os.makedirs(config_dir, exist_ok=True)
+
+    # Don't overwrite existing config
+    if os.path.exists(config_path):
+        console.print(
+            f"[blue]Configuration file already exists at {config_path}[/blue]"
+        )
+        return
+
+    # Copy default config to user's config directory
+    default_config = resources.files("one_updater").joinpath(
+        "configs/default_config.yaml"
+    )
+    with resources.as_file(default_config) as default_config_path:
+        shutil.copy(default_config_path, config_path)
+        console.print(f"[green]Configuration file created at {config_path}[/green]")
+        if config_path != get_default_config_path():
+            console.print(
+                "[yellow]You used a custom config file path. Remember to use the same --config (or -c) flag when running other commands.[/yellow]"
+            )
 
 
 def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
@@ -69,22 +130,61 @@ def run_package_manager_action(
             console.print(f"[red]✗ {name} {action_name} failed[/red]")
 
 
+def common_options(f):
+    """Common options for all commands."""
+    f = click.option(
+        "--config",
+        "-c",
+        help="Path to config file (default: ~/.config/one-updater/config.yaml)",
+        default=None,
+    )(f)
+    return f
+
+
 @click.group()
-@click.option("--config", "-c", default="config.yaml", help="Path to config file")
+@common_options
 @click.pass_context
 def cli(ctx, config):
     """One Update - Update all your package managers with one command."""
     ctx.ensure_object(dict)
-    ctx.obj["config"] = load_config(config)
+    # Convert relative path to absolute path if config is provided
+    if config:
+        config = os.path.abspath(config)
+    ctx.obj["config_path"] = config or get_default_config_path()
+
+    if ctx.invoked_subcommand == "init":
+        return
+
+    if not os.path.exists(ctx.obj["config_path"]):
+        console.print(
+            f"[red]Config file not found at {ctx.obj['config_path']}\n"
+            "Run 'one-updater init' to create a new configuration file.[/red]"
+        )
+        sys.exit(1)
+
+    ctx.obj["config"] = load_config(ctx.obj["config_path"])
     setup_logging(ctx.obj["config"])
 
 
-@cli.command("version", help="Show version information")
-def show_version():
+@cli.command("init", help="Initialize a new configuration file")
+@common_options
+def init(config):
+    """Initialize a new configuration file."""
+    # Use the provided config path or default
+    config_path = os.path.abspath(config) if config else get_default_config_path()
     try:
-        from importlib.metadata import (  # pylint: disable=import-outside-toplevel
-            version,
-        )
+        init_config(config_path)
+    except Exception as e:
+        console.print(f"[red]Error initializing config file: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command("version", help="Show version information")
+@common_options
+def show_version(config):
+    """Show version information."""
+    try:
+        from importlib.metadata import version
 
         one_updater_version = version("one-updater")
         print(f"one-updater version {one_updater_version}")
@@ -93,6 +193,7 @@ def show_version():
 
 
 @cli.command()
+@common_options
 @click.option(
     "--manager", "-m", multiple=True, help="Specific package manager(s) to update"
 )
@@ -100,9 +201,9 @@ def show_version():
     "--verbose", "-v", is_flag=True, help="Show verbose output from package managers"
 )
 @click.pass_context
-def update(ctx, manager, verbose):
+def update(ctx, config, manager, verbose):
     """Update package manager indices/registries."""
-    config = ctx.obj["config"]
+    config = ctx.obj.get("config", {})
     package_managers = config.get("package_managers", {})
 
     # Filter package managers if specified
@@ -121,6 +222,7 @@ def update(ctx, manager, verbose):
 
 
 @cli.command()
+@common_options
 @click.option(
     "--manager", "-m", multiple=True, help="Specific package manager(s) to upgrade"
 )
@@ -128,9 +230,9 @@ def update(ctx, manager, verbose):
     "--verbose", "-v", is_flag=True, help="Show verbose output from package managers"
 )
 @click.pass_context
-def upgrade(ctx, manager, verbose):
+def upgrade(ctx, config, manager, verbose):
     """Upgrade all packages for specified package managers."""
-    config = ctx.obj["config"]
+    config = ctx.obj.get("config", {})
     package_managers = config.get("package_managers", {})
 
     # Filter package managers if specified
@@ -149,10 +251,11 @@ def upgrade(ctx, manager, verbose):
 
 
 @cli.command()
+@common_options
 @click.pass_context
-def list_managers(ctx):
+def list_managers(ctx, config):
     """List all configured package managers and their status."""
-    config = ctx.obj["config"]
+    config = ctx.obj.get("config", {})
     package_managers = config.get("package_managers", {})
 
     console.print("\n[bold]Configured Package Managers:[/bold]")
@@ -163,4 +266,4 @@ def list_managers(ctx):
 
 
 if __name__ == "__main__":
-    cli(obj={})
+    cli(obj={})  # pylint: disable=no-value-for-parameter
