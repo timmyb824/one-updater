@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -13,6 +14,7 @@ class PackageManager(ABC):
         self.enabled = config.get("enabled", True)
         self.commands = config.get("commands", {})
         self.verbose = config.get("verbose", False)
+        self._status = config.get("status", None)  # Status object for progress display
 
     def run_command(self, command: list[str]) -> bool:
         """Run a command and return True if it succeeded."""
@@ -22,28 +24,57 @@ class PackageManager(ABC):
         try:
             if self.verbose:
                 logging.info(f"Running command: {' '.join(command)}")
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            if result.stdout:
-                logging.info(
-                    f"INFO - stdout from {' '.join(command)}:\n{result.stdout}"
+
+            # Check if this is a sudo command that might need password input
+            needs_terminal = command[0] == "sudo"
+
+            if needs_terminal and self._status:
+                # Pause the status spinner for sudo commands
+                self._status.stop()
+
+            if needs_terminal:
+                # For sudo commands, connect directly to the terminal
+                result = subprocess.run(
+                    command,
+                    stdin=sys.stdin,
+                    stdout=sys.stdout,
+                    stderr=sys.stderr,
+                    check=True,
                 )
+            else:
+                # For non-sudo commands, we can capture output
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                if result.stdout:
+                    logging.info(
+                        f"INFO - stdout from {' '.join(command)}:\n{result.stdout}"
+                    )
+
+            if needs_terminal and self._status:
+                # Resume the status spinner after sudo command
+                self._status.start()
+
             return True
         except subprocess.CalledProcessError as e:
             if self.verbose:
                 logging.error(f"Command failed with exit code {e.returncode}")
-                if e.stdout:
+                if hasattr(e, "stdout") and e.stdout:
                     logging.error(f"stdout: {e.stdout}")
-                if e.stderr:
+                if hasattr(e, "stderr") and e.stderr:
                     logging.error(f"stderr: {e.stderr}")
-            if e.stdout:
+            if hasattr(e, "stdout") and e.stdout:
                 logging.error(f"ERROR - stdout from {' '.join(command)}:\n{e.stdout}")
-            if e.stderr:
+            if hasattr(e, "stderr") and e.stderr:
                 logging.error(f"ERROR - stderr from {' '.join(command)}:\n{e.stderr}")
+
+            if needs_terminal and self._status:
+                # Resume the status spinner after error
+                self._status.start()
+
             return False
 
     def run_command_with_output(
