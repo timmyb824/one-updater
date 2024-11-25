@@ -79,7 +79,7 @@ def cli(ctx, config):
     setup_logging(ctx.obj["config"])
 
 
-@cli.command("version")
+@cli.command("version", help="Show version information")
 def show_version():
     try:
         from importlib.metadata import (  # pylint: disable=import-outside-toplevel
