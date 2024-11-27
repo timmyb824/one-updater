@@ -18,8 +18,18 @@ console = Console()
 
 def setup_logging(config: dict):
     """Setup logging configuration."""
+    level = (
+        logging.DEBUG
+        if config.get("verbose", False)
+        else config.get("logging", {}).get("level", "INFO")
+    )
+
+    # Remove existing handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
     logging.basicConfig(
-        level=config.get("logging", {}).get("level", "INFO"),
+        level=level,
         format=config.get("logging", {}).get("format", "%(message)s"),
         handlers=[RichHandler(console=console)],
     )
@@ -121,6 +131,8 @@ def run_package_manager_action(
     cfg["verbose"] = verbose
     cfg["status"] = status
 
+    logging.debug(f"Config for {name}: {cfg}")  # Debug log the config
+
     if pm := get_package_manager(name, cfg):
         # strip e at end of action_name if it exists
         action_name_without_e = action_name.title().rstrip("e")
@@ -164,6 +176,7 @@ def cli(ctx, config):
         )
         sys.exit(1)
 
+    # Load config and set up logging
     ctx.obj["config"] = load_config(ctx.obj["config_path"])
     setup_logging(ctx.obj["config"])
 
@@ -205,6 +218,11 @@ def show_version():
 def update(ctx, config, manager, verbose):
     """Update package manager indices/registries."""
     config = ctx.obj.get("config", {})
+    if verbose:
+        # Update config and re-setup logging with verbose
+        config["verbose"] = verbose
+        setup_logging(config)
+
     package_managers = config.get("package_managers", {})
 
     # Filter package managers if specified
@@ -217,6 +235,8 @@ def update(ctx, config, manager, verbose):
 
     with console.status("[bold green]Updating package managers...") as status:
         for name, cfg in package_managers.items():
+            # Ensure verbose flag is set in each package manager's config
+            cfg["verbose"] = verbose
             run_package_manager_action(
                 name, cfg, "update", lambda pm: pm.update(), verbose, status
             )
