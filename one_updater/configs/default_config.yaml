@@ -3,6 +3,12 @@
 # by adding them to this file. For a full list of supported package managers and
 # their configurations, visit: https://github.com/TimothyBryant/one-updater
 
+# Global configuration
+verbose: false # Set to true to enable verbose output by default
+logging:
+  level: "INFO" # Can be DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(message)s"
+
 package_managers:
   # Homebrew - The missing package manager for macOS
   brew:
@@ -17,6 +23,8 @@ package_managers:
     commands:
       update: [] # No separate update command needed
       upgrade: [] # Upgrade handled internally
+    virtualenv: "/path/to/your/virtualenv"  # Optional: Path to virtualenv
+    pyenv_version: "3.11.0"  # Optional: pyenv version to use
 
   # NPM - Node.js package manager
   npm:

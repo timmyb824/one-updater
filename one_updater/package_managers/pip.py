@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import subprocess
 from pathlib import Path
 
@@ -14,16 +15,65 @@ class PipManager(PackageManager):
     def __init__(self, config: dict):
         super().__init__(config)
         self.virtualenv = config.get("virtualenv")
-        self.pyenv = config.get("pyenv")
+        self.pyenv_version = config.get("pyenv_version")
+        if self.virtualenv and self.pyenv_version:
+            logging.warning(
+                "Both virtualenv and pyenv_version specified. Using virtualenv."
+            )
 
     def is_available(self) -> bool:
-        """Check if pip is available."""
-        return self.run_command(["which", "pip"])
+        """Check if pip is available in the specified environment."""
+        if self.pyenv_version and not self._check_pyenv():
+            return False
+        return self.run_command(self._get_pip_command() + ["--version"])
+
+    def _check_pyenv(self) -> bool:
+        """Check if pyenv is available and the specified version exists."""
+        try:
+            # Check if pyenv is installed
+            result = subprocess.run(
+                ["which", "pyenv"], capture_output=True, text=True, check=True
+            )
+            if not result.stdout.strip():
+                logging.error("pyenv is not installed")
+                return False
+
+            # Check if specified version exists
+            result = subprocess.run(
+                ["pyenv", "versions", "--bare"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            installed_versions = result.stdout.strip().split("\n")
+            if self.pyenv_version not in installed_versions:
+                logging.error(f"pyenv version {self.pyenv_version} is not installed")
+                return False
+
+            if self.verbose:
+                logging.info(f"Using pyenv version: {self.pyenv_version}")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Error checking pyenv: {e}")
+            if self.verbose and e.stderr:
+                logging.error(f"Error output: {e.stderr}")
+            return False
 
     def _get_pip_command(self) -> list[str]:
         """Get the correct pip command based on virtualenv/pyenv settings."""
         if self.virtualenv:
-            return [str(Path(self.virtualenv) / "bin" / "pip")]
+            pip_path = str(Path(self.virtualenv) / "bin" / "pip")
+            if not os.path.exists(pip_path):
+                logging.error(f"Virtualenv pip not found at: {pip_path}")
+                return ["pip"]  # Fallback to system pip
+            if self.verbose:
+                logging.info(f"Using virtualenv pip: {pip_path}")
+            return [pip_path]
+        elif self.pyenv_version:
+            # Use pyenv's pip if version is specified and available
+            if self._check_pyenv():
+                return ["pyenv", "exec", "pip"]
         return ["pip"]
 
     def _check_available(self, operation: str) -> bool:
@@ -86,10 +136,17 @@ class PipManager(PackageManager):
                         )
 
                     try:
-                        upgrade_cmd = self.commands.get(
-                            "upgrade", pip_cmd + ["install", "--upgrade"]
-                        )
-                        if not self.run_command(upgrade_cmd + [package_name]):
+                        # Get base upgrade command or use default pip install --upgrade
+                        upgrade_cmd = self.commands.get("upgrade", [])
+                        if not upgrade_cmd:
+                            upgrade_cmd = pip_cmd + ["install", "--upgrade"]
+
+                        # Add package name to the command
+                        package_cmd = upgrade_cmd + [package_name]
+                        if self.verbose:
+                            logging.info(f"Running command: {' '.join(package_cmd)}")
+
+                        if not self.run_command(package_cmd):
                             logging.error(f"Failed to upgrade {package_name}")
                             success = False
                     except Exception as e:

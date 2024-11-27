@@ -218,6 +218,8 @@ def show_version():
 def update(ctx, config, manager, verbose):
     """Update package manager indices/registries."""
     config = ctx.obj.get("config", {})
+    # Check config for verbose flag first, command line flag overrides
+    verbose = verbose or config.get("verbose", False)
     if verbose:
         # Update config and re-setup logging with verbose
         config["verbose"] = verbose
@@ -254,6 +256,13 @@ def update(ctx, config, manager, verbose):
 def upgrade(ctx, config, manager, verbose):
     """Upgrade all packages for specified package managers."""
     config = ctx.obj.get("config", {})
+    # Check config for verbose flag first, command line flag overrides
+    verbose = verbose or config.get("verbose", False)
+    if verbose:
+        # Update config and re-setup logging with verbose
+        config["verbose"] = verbose
+        setup_logging(config)
+
     package_managers = config.get("package_managers", {})
 
     # Filter package managers if specified
