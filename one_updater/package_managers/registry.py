@@ -5,12 +5,15 @@ from .base import PackageManager
 from .basher import BasherManager
 from .brew import HomebrewManager
 from .cargo import CargoManager
+from .dnf import DnfManager
+from .flatpak import FlatpakManager
 from .gem import GemManager
 from .ghcli import GhCliManager
 from .go import GoManager
 from .krew import KubectlKrewManager
 from .micro import MicroEditorManager
 from .npm import NpmManager
+from .pacman import PacmanManager
 from .pip import PipManager
 from .pipx import PipxManager
 from .pkgx import PkgxManager
@@ -39,6 +42,9 @@ class PackageManagerRegistry:
         "snap": SnapManager,
         "tldr": TldrManager,
         "vagrant": VagrantPluginManager,
+        "dnf": DnfManager,
+        "flatpak": FlatpakManager,
+        "pacman": PacmanManager,
     }
 
     @classmethod
