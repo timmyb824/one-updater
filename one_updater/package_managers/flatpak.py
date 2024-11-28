@@ -33,6 +33,19 @@ class FlatpakManager(PackageManager):
         # Check if flatpak is installed
         return self.run_command(["which", "flatpak"])
 
+    def is_available(self) -> bool:
+        """Check if Flatpak is available on the system.
+
+        Returns:
+            bool: True if Flatpak is available, False otherwise
+        """
+        # Check if flatpak is installed
+        if not self.run_command(["which", "flatpak"]):
+            if self.verbose:
+                logging.warning("Flatpak is not installed")
+            return False
+        return True
+
     def update(self) -> bool:
         """Update Flatpak package lists.
 

@@ -33,6 +33,19 @@ class DnfManager(PackageManager):
         # Check if dnf is installed
         return self.run_command(["which", "dnf"])
 
+    def is_available(self) -> bool:
+        """Check if DNF is available on the system.
+
+        Returns:
+            bool: True if DNF is available, False otherwise
+        """
+        # Check if dnf is installed
+        if not self.run_command(["which", "dnf"]):
+            if self.verbose:
+                logging.warning("DNF is not installed")
+            return False
+        return True
+
     def update(self) -> bool:
         """Update DNF package lists.
 

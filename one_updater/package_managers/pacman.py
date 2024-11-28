@@ -33,6 +33,19 @@ class PacmanManager(PackageManager):
         # Check if pacman is installed
         return self.run_command(["which", "pacman"])
 
+    def is_available(self) -> bool:
+        """Check if Pacman is available on the system.
+
+        Returns:
+            bool: True if Pacman is available, False otherwise
+        """
+        # Check if pacman is installed
+        if not self.run_command(["which", "pacman"]):
+            if self.verbose:
+                logging.warning("Pacman is not installed")
+            return False
+        return True
+
     def update(self) -> bool:
         """Update Pacman package database.
 
