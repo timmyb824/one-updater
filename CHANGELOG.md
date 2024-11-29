@@ -1,6 +1,30 @@
 # CHANGELOG
 
 
+## v0.3.0 (2024-11-29)
+
+### Chores
+
+- Black quality changes
+  ([`7478b6c`](https://github.com/timmyb824/one-updater/commit/7478b6cd54ceae9794e69c9350e78b214365c3f2))
+
+### Documentation
+
+- Add availability check functions for DNF, Flatpak, and Pacman package managers
+  ([`5118f7a`](https://github.com/timmyb824/one-updater/commit/5118f7a6dc1d505d03c3e15afbed561525e383f0))
+
+### Features
+
+- Add support for pyenv and virtualenv for pip
+  ([`aec06cf`](https://github.com/timmyb824/one-updater/commit/aec06cfd03aaa01b9316290e11900544498cb0eb))
+
+- Refactor logging configuration and improve go logic
+  ([`ba0bcae`](https://github.com/timmyb824/one-updater/commit/ba0bcaecffc30044cdb4ceba0f8d9793b0cd53d7))
+
+- Add DNF, Flatpak, and Pacman package managers
+  ([`f75b740`](https://github.com/timmyb824/one-updater/commit/f75b7406d1f9c38fb8fc034699dd43f4c06b2829))
+
+
 ## v0.2.0 (2024-11-25)
 
 ### Features
