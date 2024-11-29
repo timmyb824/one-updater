@@ -1,0 +1,17 @@
+verbose: true
+logging:
+  level: "INFO"
+  format: "%(message)s"
+
+package_managers:
+  pip:
+    enabled: true
+    commands:
+      update: ["pip", "install", "--upgrade", "pip"]
+      upgrade: []
+
+  brew:
+    enabled: true
+    commands:
+      update: ["brew", "update"]
+      upgrade: ["brew", "upgrade"]
