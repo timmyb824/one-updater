@@ -14,6 +14,7 @@ from one_updater.package_managers.base import PackageManager
 from one_updater.package_managers.registry import PackageManagerRegistry
 
 console = Console()
+logger = logging.getLogger("one-updater")
 
 
 def setup_logging(config: dict):
@@ -24,15 +25,19 @@ def setup_logging(config: dict):
         else config.get("logging", {}).get("level", "INFO")
     )
 
-    # Remove existing handlers
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
+    # Create our own logger instead of modifying root logger
+    logger.setLevel(level)
 
-    logging.basicConfig(
-        level=level,
-        format=config.get("logging", {}).get("format", "%(message)s"),
-        handlers=[RichHandler(console=console)],
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    # Add rich handler
+    handler = RichHandler(console=console)
+    handler.setFormatter(
+        logging.Formatter(config.get("logging", {}).get("format", "%(message)s"))
     )
+    logger.addHandler(handler)
 
 
 def get_default_config_path():
@@ -42,6 +47,7 @@ def get_default_config_path():
 
 
 def load_config(config_path: Optional[str] = None):
+    # sourcery skip: extract-method
     """Load configuration from file.
 
     Args:
@@ -52,6 +58,7 @@ def load_config(config_path: Optional[str] = None):
         dict: Loaded configuration
     """
     config_path = config_path or get_default_config_path()
+    logger.debug(f"Loading config from: {config_path}")
 
     if not os.path.exists(config_path):
         console.print(
@@ -61,10 +68,16 @@ def load_config(config_path: Optional[str] = None):
 
     try:
         with open(config_path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            logger.debug("Reading YAML file...")
+            content = f.read()
+            logger.debug(f"File contents: {content}")
+            config = yaml.safe_load(content)
+            logger.debug(f"Parsed YAML: {config}")
+            if not isinstance(config, dict):
+                raise ValueError("Invalid YAML: not a dictionary")
+            return config
     except Exception as e:
-        console.print(f"[red]Error loading config file: {e}[/red]")
-        return {}
+        raise RuntimeError(f"Error loading config file: {e}") from e
 
 
 def init_config(config_path: Optional[str] = None):
@@ -107,7 +120,7 @@ def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
     try:
         return PackageManagerRegistry.get_manager(name, config)
     except ValueError as e:
-        logging.warning(str(e))
+        logger.warning(str(e))
         return None
 
 
@@ -131,7 +144,7 @@ def run_package_manager_action(
     cfg["verbose"] = verbose
     cfg["status"] = status
 
-    logging.debug(f"Config for {name}: {cfg}")  # Debug log the config
+    logger.debug(f"Config for {name}: {cfg}")  # Debug log the config
 
     if pm := get_package_manager(name, cfg):
         # strip e at end of action_name if it exists
@@ -160,10 +173,15 @@ def common_options(f):
 def cli(ctx, config):
     """One Update - Update all your package managers with one command."""
     ctx.ensure_object(dict)
+
+    # Set up initial logging with default config
+    setup_logging({"verbose": False})
+
     # Convert relative path to absolute path if config is provided
     if config:
         config = os.path.abspath(config)
     ctx.obj["config_path"] = config or get_default_config_path()
+    logger.debug(f"Using config path: {ctx.obj['config_path']}")
 
     # Skip config checks for commands that don't need it
     if ctx.invoked_subcommand in ["init", "version"]:
@@ -176,9 +194,18 @@ def cli(ctx, config):
         )
         sys.exit(1)
 
-    # Load config and set up logging
-    ctx.obj["config"] = load_config(ctx.obj["config_path"])
-    setup_logging(ctx.obj["config"])
+    try:
+        # Load config and update logging
+        logger.debug("Loading config file...")
+        ctx.obj["config"] = load_config(ctx.obj["config_path"])
+        logger.debug(f"Loaded config: {ctx.obj['config']}")
+
+        # Update logging with loaded config
+        if ctx.obj["config"].get("verbose", False):
+            setup_logging(ctx.obj["config"])
+    except Exception as e:
+        console.print(f"[red]Error loading config file: {e}[/red]")
+        sys.exit(2)
 
 
 @cli.command("init", help="Initialize a new configuration file")
@@ -229,10 +256,11 @@ def update(ctx, config, manager, verbose):
 
     # Filter package managers if specified
     if manager:
-        # Check for requested managers that don't exist in config
-        for m in manager:
-            if m not in package_managers:
-                logging.warning(f"Package manager '{m}' is not defined in config")
+        if invalid_managers := [m for m in manager if m not in package_managers]:
+            console.print(
+                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
+            )
+            sys.exit(1)
         package_managers = {k: v for k, v in package_managers.items() if k in manager}
 
     with console.status("[bold green]Updating package managers...") as status:
@@ -270,7 +298,7 @@ def upgrade(ctx, config, manager, verbose):
         # Check for requested managers that don't exist in config
         for m in manager:
             if m not in package_managers:
-                logging.warning(f"Package manager '{m}' is not defined in config")
+                logger.warning(f"Package manager '{m}' is not defined in config")
         package_managers = {k: v for k, v in package_managers.items() if k in manager}
 
     with console.status("[bold green]Upgrading packages...") as status:
@@ -286,7 +314,14 @@ def upgrade(ctx, config, manager, verbose):
 def list_managers(ctx, config):
     """List all configured package managers and their status."""
     config = ctx.obj.get("config", {})
+    if not config:
+        console.print("[red]Error: No package managers configured[/red]")
+        sys.exit(1)
+
     package_managers = config.get("package_managers", {})
+    if not package_managers:
+        console.print("[yellow]No package managers found in config[/yellow]")
+        return
 
     console.print("\n[bold]Configured Package Managers:[/bold]")
     for name, cfg in package_managers.items():

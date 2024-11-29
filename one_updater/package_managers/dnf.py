@@ -1,4 +1,5 @@
 """DNF package manager implementation."""
+
 import logging
 from typing import List, Optional
 

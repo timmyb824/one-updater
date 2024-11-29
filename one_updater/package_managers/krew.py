@@ -1,4 +1,5 @@
 """kubectl-krew package manager implementation."""
+
 from .base import PackageManager
 
 
