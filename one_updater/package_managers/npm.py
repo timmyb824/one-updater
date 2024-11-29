@@ -1,4 +1,5 @@
 """npm package manager implementation."""
+
 from .base import PackageManager
 
 

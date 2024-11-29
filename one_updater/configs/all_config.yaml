@@ -1,3 +1,12 @@
+# One-Updater Full Configuration
+# This configuration includes all supported package managers
+
+# Global configuration
+verbose: true # Set to true to enable verbose output by default
+logging:
+  level: "INFO" # Can be DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(message)s"
+
 package_managers:
   apt:
     enabled: true
@@ -22,6 +31,18 @@ package_managers:
     commands:
       update: ["rustup", "update"]
       upgrade: [] # Empty list indicates upgrade is supported but packages are handled internally
+
+  dnf:
+    enabled: true
+    commands:
+      update: ["sudo", "dnf", "check-update"]
+      upgrade: ["sudo", "dnf", "upgrade", "-y"]
+
+  flatpak:
+    enabled: true
+    commands:
+      update: ["flatpak", "update", "-y"]
+      upgrade: ["flatpak", "upgrade", "-y"]
 
   gem:
     enabled: true
@@ -57,15 +78,23 @@ package_managers:
     enabled: true
     commands:
       update: ["npm", "update", "-g"]
-      upgrade: ["npm", "update", "-g"]
+      upgrade: ["npm", "upgrade", "-g"]
+
+  pacman:
+    enabled: true
+    commands:
+      update: ["sudo", "pacman", "-Sy"]
+      upgrade: ["sudo", "pacman", "-Su", "--noconfirm"]
 
   pip:
     enabled: true
-    virtualenv: null # Set to virtualenv path if needed
-    pyenv: null # Set to pyenv version if needed
     commands:
       update: ["pip", "install", "--upgrade", "pip"]
-      upgrade: ["pip", "list", "--outdated", "--format=json"] # Will be handled specially in code
+      upgrade: [] # Upgrade handled internally by code
+    # Optional: Use a specific virtualenv
+    # virtualenv: "/path/to/your/virtualenv"
+    # Optional: Use a specific pyenv version
+    # pyenv_version: "3.11.0"
 
   pipx:
     enabled: true
@@ -96,7 +125,3 @@ package_managers:
     commands:
       update: ["vagrant", "plugin", "update"]
       upgrade: []
-
-logging:
-  level: "INFO"
-  format: "%(asctime)s - %(levelname)s - %(message)s"

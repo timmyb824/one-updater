@@ -43,15 +43,15 @@ jobs:
         run: |
           python -m poetry install --no-root
 
-      # - name: Code quality checks
-      #   shell: bash
-      #   run: |
-      #     poetry run python -m black --check .
+      - name: Code quality checks
+        shell: bash
+        run: |
+          poetry run python -m black --check .
 
-      # - name: Run unit tests
-      #   shell: bash
-      #   run: |
-      #     poetry run python -m pytest -xvvv tests/
+      - name: Run unit tests
+        shell: bash
+        run: |
+          poetry run python -m pytest -xvvv tests/
 
       - name: Test run the tool
         if: success()

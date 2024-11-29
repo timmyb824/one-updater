@@ -14,7 +14,7 @@ class PackageManager(ABC):
         self.enabled = config.get("enabled", True)
         self.commands = config.get("commands", {})
         self.verbose = config.get("verbose", False)
-        self._status = config.get("status", None)  # Status object for progress display
+        self._status = config.get("status")  # Status object for progress display
 
     def run_command(self, command: list[str]) -> bool:
         """Run a command and return True if it succeeded."""
