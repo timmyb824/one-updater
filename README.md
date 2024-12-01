@@ -7,7 +7,8 @@ A flexible package manager updater that helps you keep all your development tool
 - Update multiple package managers with a single command
 - Configure which package managers to update
 - Support for virtual environments and pyenv for Python packages
-- Beautiful command-line interface with rich formatting
+- Beautiful command-line interface with rich formatting and logging
+- Cross-platform support
 - Extensible architecture for adding new package managers
 
 ## Supported Package Managers
@@ -18,21 +19,29 @@ A flexible package manager updater that helps you keep all your development tool
 - cargo
 - gem
 - pipx
+- pacman
+- dnf
+- flatpak
+- pkgx
+- vagrant-plugins
+- micro editor plugins
+- tldr pages
+- go packages
+- apt
 - More coming soon!
 
 ## Installation
 
-1. Clone the repository:
+Install from PyPI:
 
 ```bash
-git clone https://github.com/yourusername/one-update.git
-cd one-update
+pip install one-updater
 ```
 
-2. Install dependencies:
+To upgrade to the latest version:
 
 ```bash
-pip install -r requirements.txt
+pip install --upgrade one-updater
 ```
 
 ## Usage
@@ -42,33 +51,44 @@ pip install -r requirements.txt
 Update all enabled package managers:
 
 ```bash
-python -m one_update.cli update
+one-updater update
 ```
 
 Update specific package managers:
 
 ```bash
-python -m one_update.cli update -m homebrew -m pip
+one-updater update -m homebrew -m pip
 ```
 
 List configured package managers:
 
 ```bash
-python -m one_update.cli list-managers
+one-updater list-managers
+```
+
+Initialize a new configuration file:
+
+```bash
+one-updater init
 ```
 
 ### Configuration
 
-The tool uses a YAML configuration file (`config.yaml`) to specify package manager settings. You can:
+The tool uses a YAML configuration file (default: `~/.config/one-updater/config.yaml`) to specify package manager settings. You can:
 
 1. Enable/disable specific package managers
 2. Configure virtualenv/pyenv for Python packages
 3. Customize update commands
-4. Configure logging
+4. Configure logging and verbosity
 
 Example configuration:
 
 ```yaml
+verbose: true
+logging:
+  level: "INFO"
+  format: "%(message)s"
+
 package_managers:
   homebrew:
     enabled: true
@@ -82,6 +102,7 @@ package_managers:
     pyenv: "3.11.0" # Optional
     commands:
       update: ["pip", "install", "--upgrade", "pip"]
+      upgrade: ["pip", "list", "--outdated", "--format=json"]
 ```
 
 ## Contributing
@@ -92,6 +113,20 @@ Contributions are welcome! Feel free to:
 2. Improve error handling and logging
 3. Add new features
 4. Fix bugs
+5. Improve documentation
+
+Please ensure your changes pass the test suite and code quality checks:
+
+```bash
+# Install development dependencies
+poetry install
+
+# Run tests
+poetry run pytest
+
+# Run code formatting
+poetry run black .
+```
 
 ## License
 
