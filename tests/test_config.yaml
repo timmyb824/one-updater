@@ -7,8 +7,12 @@ package_managers:
   pip:
     enabled: true
     commands:
-      update: ["pip", "install", "--upgrade", "pip"]
-      upgrade: []
+      update: [] # No separate update command needed
+      upgrade: [] # Upgrade handled internally
+    pyenv_version: # Can be a single string or list of versions
+      - "3.11.0"
+      - "3.10.6"
+    virtualenv: "/path/to/virtualenv" # Optional, takes precedence over pyenv
 
   brew:
     enabled: true
