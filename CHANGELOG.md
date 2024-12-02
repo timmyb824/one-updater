@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.3.1 (2024-12-02)
+
+### Documentation
+
+- Update readme to reflect current state
+  ([`54814ab`](https://github.com/timmyb824/one-updater/commit/54814ab3111000b39b7f63eee34f7cd7cdc11123))
+
+
 ## v0.3.0 (2024-11-29)
 
 ### Chores
