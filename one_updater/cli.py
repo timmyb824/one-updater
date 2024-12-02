@@ -25,19 +25,23 @@ def setup_logging(config: dict):
         else config.get("logging", {}).get("level", "INFO")
     )
 
-    # Create our own logger instead of modifying root logger
-    logger.setLevel(level)
+    # Configure the root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
 
-    # Remove existing handlers
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+    # Remove existing handlers from root logger
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 
-    # Add rich handler
+    # Add rich handler to root logger
     handler = RichHandler(console=console)
     handler.setFormatter(
         logging.Formatter(config.get("logging", {}).get("format", "%(message)s"))
     )
-    logger.addHandler(handler)
+    root_logger.addHandler(handler)
+
+    # Also set our app logger to the same level
+    logger.setLevel(level)
 
 
 def get_default_config_path():
@@ -284,12 +288,16 @@ def update(ctx, config, manager, verbose):
 def upgrade(ctx, config, manager, verbose):
     """Upgrade all packages for specified package managers."""
     config = ctx.obj.get("config", {})
+
     # Check config for verbose flag first, command line flag overrides
     verbose = verbose or config.get("verbose", False)
+
+    # Update config and re-setup logging with verbose
+    config["verbose"] = verbose
+    setup_logging(config)
+
     if verbose:
-        # Update config and re-setup logging with verbose
-        config["verbose"] = verbose
-        setup_logging(config)
+        logger.debug("Verbose logging enabled")
 
     package_managers = config.get("package_managers", {})
 
@@ -303,8 +311,16 @@ def upgrade(ctx, config, manager, verbose):
 
     with console.status("[bold green]Upgrading packages...") as status:
         for name, cfg in package_managers.items():
+            # Create a new config for this package manager
+            pm_config = cfg.copy()
+            pm_config["verbose"] = verbose
+            pm_config["status"] = status
+
+            if verbose:
+                logger.debug(f"Running {name} with config: {pm_config}")
+
             run_package_manager_action(
-                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose, status
+                name, pm_config, "upgrade", lambda pm: pm.upgrade(), verbose, status
             )
 
 
