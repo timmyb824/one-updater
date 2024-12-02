@@ -15,43 +15,60 @@ class PipManager(PackageManager):
     def __init__(self, config: dict):
         super().__init__(config)
         self.virtualenv = config.get("virtualenv")
-        self.pyenv_version = config.get("pyenv_version")
-        if self.virtualenv and self.pyenv_version:
+        self.pyenv_versions = self._get_pyenv_versions(config)
+        if self.virtualenv and self.pyenv_versions:
             logging.warning(
-                "Both virtualenv and pyenv_version specified. Using virtualenv."
+                "Both virtualenv and pyenv_versions specified. Using virtualenv."
             )
+
+    def _get_pyenv_versions(self, config: dict) -> list[str]:
+        """Get list of pyenv versions from config."""
+        pyenv_version = config.get("pyenv_version")
+        if isinstance(pyenv_version, list):
+            return pyenv_version
+        elif isinstance(pyenv_version, str):
+            return [pyenv_version] if pyenv_version else []
+        return []
 
     def is_available(self) -> bool:
-        """Check if pip is available in the specified environment."""
-        if self.pyenv_version and not self._check_pyenv():
-            return False
-        return self.run_command(self._get_pip_command() + ["--version"])
+        """Check if pip is available in any specified environment."""
+        if self.virtualenv:
+            return self._check_virtualenv()
+        elif self.pyenv_versions:
+            return any(self._check_pyenv(version) for version in self.pyenv_versions)
+        return self.run_command(["pip", "--version"])
 
-    def _check_pyenv(self) -> bool:
+    def _check_virtualenv(self) -> bool:
+        """Check if virtualenv is available and valid."""
+        pip_path = str(Path(self.virtualenv) / "bin" / "pip")
+        if not os.path.exists(pip_path):
+            logging.error(f"Virtualenv pip not found at: {pip_path}")
+            return False
+        if self.verbose:
+            logging.info(f"Using virtualenv pip: {pip_path}")
+        return True
+
+    def _check_pyenv(self, version: str) -> bool:
+        # sourcery skip: extract-method
         """Check if pyenv is available and the specified version exists."""
         try:
-            # Check if pyenv is installed
+            # Check if pyenv is installed and get root
             result = subprocess.run(
-                ["which", "pyenv"], capture_output=True, text=True, check=True
+                ["pyenv", "root"], capture_output=True, text=True, check=True
             )
-            if not result.stdout.strip():
-                logging.error("pyenv is not installed")
+            pyenv_root = result.stdout.strip()
+            if not pyenv_root:
+                logging.error("Could not determine pyenv root")
                 return False
 
-            # Check if specified version exists
-            result = subprocess.run(
-                ["pyenv", "versions", "--bare"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            installed_versions = result.stdout.strip().split("\n")
-            if self.pyenv_version not in installed_versions:
-                logging.error(f"pyenv version {self.pyenv_version} is not installed")
+            # Check if version exists
+            version_path = os.path.join(pyenv_root, "versions", version)
+            if not os.path.exists(version_path):
+                logging.error(f"pyenv version {version} not found at {version_path}")
                 return False
 
             if self.verbose:
-                logging.info(f"Using pyenv version: {self.pyenv_version}")
+                logging.info(f"Found pyenv version at: {version_path}")
             return True
 
         except subprocess.CalledProcessError as e:
@@ -60,28 +77,56 @@ class PipManager(PackageManager):
                 logging.error(f"Error output: {e.stderr}")
             return False
 
-    def _get_pip_command(self) -> list[str]:
-        """Get the correct pip command based on virtualenv/pyenv settings."""
+    def _get_pip_commands(self) -> list[list[str]]:
+        """Get all pip commands based on virtualenv/pyenv settings."""
         if self.virtualenv:
             pip_path = str(Path(self.virtualenv) / "bin" / "pip")
             if not os.path.exists(pip_path):
                 logging.error(f"Virtualenv pip not found at: {pip_path}")
-                return ["pip"]  # Fallback to system pip
+                return [["pip"]]  # Fallback to system pip
             if self.verbose:
                 logging.info(f"Using virtualenv pip: {pip_path}")
-            return [pip_path]
-        elif self.pyenv_version:
-            # Use pyenv's pip if version is specified and available
-            if self._check_pyenv():
-                return ["pyenv", "exec", "pip"]
-        return ["pip"]
+            return [[pip_path]]
+        elif self.pyenv_versions:
+            try:
+                # Get pyenv root
+                if self.verbose:
+                    logging.info("Getting pyenv root directory...")
+                result = subprocess.run(
+                    ["pyenv", "root"], capture_output=True, text=True, check=True
+                )
+                pyenv_root = result.stdout.strip()
+                if self.verbose:
+                    logging.info(f"Found pyenv root at: {pyenv_root}")
 
-    def _check_available(self, operation: str) -> bool:
-        """Check if pip is available for the given operation."""
-        if not self.is_available():
-            logging.info(f"pip is not installed. Skipping {operation}.")
-            return False
-        return True
+                # Get pip path for each version
+                commands = []
+                for version in self.pyenv_versions:
+                    if self._check_pyenv(version):
+                        pip_path = os.path.join(
+                            pyenv_root, "versions", version, "bin", "pip"
+                        )
+                        if self.verbose:
+                            logging.info(
+                                f"Using pip from pyenv version {version}: {pip_path}"
+                            )
+                        commands.append([pip_path])
+
+                if not commands and self.verbose:
+                    logging.warning(
+                        "No valid pyenv versions found, falling back to system pip"
+                    )
+                return commands or [
+                    ["pip"]
+                ]  # Fallback to system pip if no valid versions
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Error getting pyenv root: {e}")
+                if self.verbose and e.stderr:
+                    logging.error(f"Error output: {e.stderr}")
+                return [["pip"]]
+        if self.verbose:
+            logging.info("Using system pip")
+        return [["pip"]]
 
     def update(self) -> bool:
         """Update pip package lists.
@@ -89,22 +134,36 @@ class PipManager(PackageManager):
         pip doesn't have a separate update operation, as it checks PyPI
         directly when installing or upgrading packages.
         """
-        if not self._check_available("update"):
+        if not self.is_available():
             return False
         # pip doesn't need a separate update operation
-        return self.run_command(self.commands.get("update", []))
+        return all(
+            self.run_command(self.commands.get("update", []))
+            for _ in self._get_pip_commands()
+        )
 
     def upgrade(self) -> bool:
-        """Upgrade pip packages."""
-        if not self._check_available("upgrade"):
+        """Upgrade pip packages in all specified environments."""
+        if not self.is_available():
             return False
 
         success = True
-        pip_cmd = self._get_pip_command()
+        for pip_cmd in self._get_pip_commands():
+            if not self._upgrade_environment(pip_cmd):
+                success = False
+
+        return success
+
+    def _upgrade_environment(self, pip_cmd: list[str]) -> bool:
+        """Upgrade packages in a specific pip environment."""
+        if not pip_cmd:
+            return False
 
         try:
             if self.verbose:
-                logging.info("Checking for outdated packages...")
+                logging.info(
+                    f"Checking for outdated packages using: {' '.join(pip_cmd)}"
+                )
             # Get list of outdated packages using JSON format
             result = subprocess.run(
                 pip_cmd + ["list", "--outdated", "--format=json"],
@@ -115,8 +174,11 @@ class PipManager(PackageManager):
 
             try:
                 packages = json.loads(result.stdout)
+                if self.verbose:
+                    logging.info(f"Raw outdated packages output: {result.stdout}")
                 if not packages:
-                    logging.info("No outdated packages found.")
+                    if self.verbose:
+                        logging.info("No outdated packages found in JSON response")
                     return True
 
                 if self.verbose:
@@ -135,37 +197,42 @@ class PipManager(PackageManager):
                             f"Upgrading {package_name} from {current_version} to {latest_version}..."
                         )
 
-                    try:
-                        # Get base upgrade command or use default pip install --upgrade
-                        upgrade_cmd = self.commands.get("upgrade", [])
-                        if not upgrade_cmd:
-                            upgrade_cmd = pip_cmd + ["install", "--upgrade"]
+                    # Get base upgrade command or use default pip install --upgrade
+                    upgrade_cmd = self.commands.get("upgrade", []) or pip_cmd + [
+                        "install",
+                        "--upgrade",
+                    ]
 
-                        # Add package name to the command
-                        package_cmd = upgrade_cmd + [package_name]
-                        if self.verbose:
-                            logging.info(f"Running command: {' '.join(package_cmd)}")
+                    # Add package name to the command
+                    package_cmd = upgrade_cmd + [package_name]
+                    if self.verbose:
+                        logging.info(
+                            f"Running upgrade command: {' '.join(package_cmd)}"
+                        )
 
-                        if not self.run_command(package_cmd):
-                            logging.error(f"Failed to upgrade {package_name}")
-                            success = False
-                    except Exception as e:
-                        logging.error(f"Error upgrading {package_name}: {e}")
-                        success = False
+                    result = subprocess.run(
+                        package_cmd,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if result.returncode != 0:
+                        logging.error(
+                            f"Failed to upgrade {package_name}: {result.stderr}"
+                        )
+                        return False
+                    elif self.verbose:
+                        logging.info(f"Upgrade output: {result.stdout}")
+
+                return True
 
             except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse JSON output: {e}")
+                logging.error(f"Failed to parse pip output as JSON: {e}")
                 if self.verbose:
-                    logging.error(f"Raw output: {result.stdout}")
-                success = False
+                    logging.error(f"Raw output was: {result.stdout}")
+                return False
 
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error listing outdated packages: {e}")
-            if e.stderr:
+            logging.error(f"Failed to check for outdated packages: {e}")
+            if self.verbose and e.stderr:
                 logging.error(f"Error output: {e.stderr}")
-            success = False
-        except Exception as e:
-            logging.error(f"Unexpected error during pip upgrade: {e}")
-            success = False
-
-        return success
+            return False

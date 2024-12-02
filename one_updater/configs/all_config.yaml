@@ -94,7 +94,9 @@ package_managers:
     # Optional: Use a specific virtualenv
     # virtualenv: "/path/to/your/virtualenv"
     # Optional: Use a specific pyenv version
-    # pyenv_version: "3.11.0"
+    pyenv_version:
+      - "3.11.0"
+      - "homelab-3.11.0"
 
   pipx:
     enabled: true
