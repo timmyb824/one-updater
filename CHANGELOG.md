@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.0 (2024-12-02)
+
+### Features
+
+- Add support for multiple pyenv versions in PipManager
+  ([`f0bb60c`](https://github.com/timmyb824/one-updater/commit/f0bb60c1ae229a1733d648e4908ec67ba3f18bc3))
+
+### Refactoring
+
+- Configure root logger and handle logging setup more efficiently
+  ([`5b72e82`](https://github.com/timmyb824/one-updater/commit/5b72e82fc96994966c597e749a398f52a5b88cbb))
+
+
 ## v0.3.1 (2024-12-02)
 
 ### Documentation
