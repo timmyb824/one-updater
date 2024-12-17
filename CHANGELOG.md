@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.1 (2024-12-17)
+
+### Refactoring
+
+- Add support for multiple virtualenv; ensure valid pyenv versions still process
+  ([`25ee364`](https://github.com/timmyb824/one-updater/commit/25ee3641f3dcfa44327fff2e8436367d73c6939f))
+
+
 ## v0.4.0 (2024-12-02)
 
 ### Features
@@ -12,6 +20,9 @@
 
 - Configure root logger and handle logging setup more efficiently
   ([`5b72e82`](https://github.com/timmyb824/one-updater/commit/5b72e82fc96994966c597e749a398f52a5b88cbb))
+
+- Ensure valid pyenv versions are still processed instead ofalling back to system version
+  ([`0fb3654`](https://github.com/timmyb824/one-updater/commit/0fb365437dd2a8c28d0cb9f7a55189123e63e61a))
 
 
 ## v0.3.1 (2024-12-02)
@@ -36,14 +47,14 @@
 
 ### Features
 
+- Add DNF, Flatpak, and Pacman package managers
+  ([`f75b740`](https://github.com/timmyb824/one-updater/commit/f75b7406d1f9c38fb8fc034699dd43f4c06b2829))
+
 - Add support for pyenv and virtualenv for pip
   ([`aec06cf`](https://github.com/timmyb824/one-updater/commit/aec06cfd03aaa01b9316290e11900544498cb0eb))
 
 - Refactor logging configuration and improve go logic
   ([`ba0bcae`](https://github.com/timmyb824/one-updater/commit/ba0bcaecffc30044cdb4ceba0f8d9793b0cd53d7))
-
-- Add DNF, Flatpak, and Pacman package managers
-  ([`f75b740`](https://github.com/timmyb824/one-updater/commit/f75b7406d1f9c38fb8fc034699dd43f4c06b2829))
 
 
 ## v0.2.0 (2024-11-25)
