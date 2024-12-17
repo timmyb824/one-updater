@@ -14,12 +14,22 @@ class PipManager(PackageManager):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.virtualenv = config.get("virtualenv")
+        self.virtualenvs = self._get_virtualenvs(config)
         self.pyenv_versions = self._get_pyenv_versions(config)
-        if self.virtualenv and self.pyenv_versions:
-            logging.warning(
-                "Both virtualenv and pyenv_versions specified. Using virtualenv."
+        if self.virtualenvs and self.pyenv_versions:
+            logging.error(
+                "Both virtualenv and pyenv_versions specified. Please specify only one. Skipping pip."
             )
+            self.enabled = False
+
+    def _get_virtualenvs(self, config: dict) -> list[str]:
+        """Get list of virtualenvs from config."""
+        virtualenv = config.get("virtualenv")
+        if isinstance(virtualenv, list):
+            return virtualenv
+        elif isinstance(virtualenv, str):
+            return [virtualenv] if virtualenv else []
+        return []
 
     def _get_pyenv_versions(self, config: dict) -> list[str]:
         """Get list of pyenv versions from config."""
@@ -32,15 +42,17 @@ class PipManager(PackageManager):
 
     def is_available(self) -> bool:
         """Check if pip is available in any specified environment."""
-        if self.virtualenv:
-            return self._check_virtualenv()
+        if not self.enabled:
+            return False
+        if self.virtualenvs:
+            return any(self._check_virtualenv(venv) for venv in self.virtualenvs)
         elif self.pyenv_versions:
             return any(self._check_pyenv(version) for version in self.pyenv_versions)
         return self.run_command(["pip", "--version"])
 
-    def _check_virtualenv(self) -> bool:
+    def _check_virtualenv(self, virtualenv: str) -> bool:
         """Check if virtualenv is available and valid."""
-        pip_path = str(Path(self.virtualenv) / "bin" / "pip")
+        pip_path = str(Path(virtualenv) / "bin" / "pip")
         if not os.path.exists(pip_path):
             logging.error(f"Virtualenv pip not found at: {pip_path}")
             return False
@@ -80,14 +92,21 @@ class PipManager(PackageManager):
     def _get_pip_commands(self) -> list[list[str]]:
         # sourcery skip: extract-method
         """Get all pip commands based on virtualenv/pyenv settings."""
-        if self.virtualenv:
-            pip_path = str(Path(self.virtualenv) / "bin" / "pip")
-            if not os.path.exists(pip_path):
-                logging.error(f"Virtualenv pip not found at: {pip_path}")
-                return [["pip"]]  # Fallback to system pip
-            if self.verbose:
-                logging.info(f"Using virtualenv pip: {pip_path}")
-            return [[pip_path]]
+        if not self.enabled:
+            return []
+
+        if self.virtualenvs:
+            commands = []
+            for virtualenv in self.virtualenvs:
+                pip_path = str(Path(virtualenv) / "bin" / "pip")
+                if not os.path.exists(pip_path):
+                    logging.error(f"Virtualenv pip not found at: {pip_path}")
+                    continue
+                if self.verbose:
+                    logging.info(f"Using virtualenv pip: {pip_path}")
+                commands.append([pip_path])
+            return commands
+
         elif self.pyenv_versions:
             try:
                 # Get pyenv root

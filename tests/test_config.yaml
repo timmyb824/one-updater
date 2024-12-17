@@ -11,8 +11,7 @@ package_managers:
       upgrade: [] # Upgrade handled internally
     pyenv_version: # Can be a single string or list of versions
       - "3.11.0"
-      - "3.10.6"
-    virtualenv: "/path/to/virtualenv" # Optional, takes precedence over pyenv
+      - "3.9.0"
 
   brew:
     enabled: true

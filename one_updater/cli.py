@@ -184,8 +184,11 @@ def cli(ctx, config):
     # Convert relative path to absolute path if config is provided
     if config:
         config = os.path.abspath(config)
+        logger.debug(f"Using provided config path: {config}")
+    else:
+        logger.debug("No config path provided, using default")
     ctx.obj["config_path"] = config or get_default_config_path()
-    logger.debug(f"Using config path: {ctx.obj['config_path']}")
+    logger.debug(f"Final config path: {ctx.obj['config_path']}")
 
     # Skip config checks for commands that don't need it
     if ctx.invoked_subcommand in ["init", "version"]:
@@ -202,7 +205,8 @@ def cli(ctx, config):
         # Load config and update logging
         logger.debug("Loading config file...")
         ctx.obj["config"] = load_config(ctx.obj["config_path"])
-        logger.debug(f"Loaded config: {ctx.obj['config']}")
+        logger.debug(f"Loaded config from {ctx.obj['config_path']}")
+        logger.debug(f"Config contents: {ctx.obj['config']}")
 
         # Update logging with loaded config
         if ctx.obj["config"].get("verbose", False):
@@ -248,7 +252,23 @@ def show_version():
 @click.pass_context
 def update(ctx, config, manager, verbose):
     """Update package manager indices/registries."""
-    config = ctx.obj.get("config", {})
+    # Load the config file specified by the -c flag
+    if config:
+        config_path = os.path.abspath(config)
+        logger.debug(f"Loading config from command line path: {config_path}")
+        try:
+            config = load_config(config_path)
+        except Exception as e:
+            console.print(f"[red]Error loading config file: {e}[/red]")
+            sys.exit(1)
+    else:
+        if not ctx.obj.get("config"):
+            console.print("[red]Error: No configuration loaded[/red]")
+            sys.exit(1)
+        config = ctx.obj["config"]
+
+    logger.debug(f"Using config: {config}")
+
     # Check config for verbose flag first, command line flag overrides
     verbose = verbose or config.get("verbose", False)
     if verbose:
@@ -257,6 +277,7 @@ def update(ctx, config, manager, verbose):
         setup_logging(config)
 
     package_managers = config.get("package_managers", {})
+    logger.debug(f"Found package managers: {list(package_managers.keys())}")
 
     # Filter package managers if specified
     if manager:
@@ -267,10 +288,16 @@ def update(ctx, config, manager, verbose):
             sys.exit(1)
         package_managers = {k: v for k, v in package_managers.items() if k in manager}
 
+    # If no managers specified, use all enabled managers
+    if not package_managers:
+        console.print("[yellow]No package managers specified or enabled[/yellow]")
+        return
+
     with console.status("[bold green]Updating package managers...") as status:
         for name, cfg in package_managers.items():
             # Ensure verbose flag is set in each package manager's config
             cfg["verbose"] = verbose
+            logger.debug(f"Running update for {name} with config: {cfg}")
             run_package_manager_action(
                 name, cfg, "update", lambda pm: pm.update(), verbose, status
             )
@@ -287,40 +314,54 @@ def update(ctx, config, manager, verbose):
 @click.pass_context
 def upgrade(ctx, config, manager, verbose):
     """Upgrade all packages for specified package managers."""
-    config = ctx.obj.get("config", {})
+    # Load the config file specified by the -c flag
+    if config:
+        config_path = os.path.abspath(config)
+        logger.debug(f"Loading config from command line path: {config_path}")
+        try:
+            config = load_config(config_path)
+        except Exception as e:
+            console.print(f"[red]Error loading config file: {e}[/red]")
+            sys.exit(1)
+    else:
+        if not ctx.obj.get("config"):
+            console.print("[red]Error: No configuration loaded[/red]")
+            sys.exit(1)
+        config = ctx.obj["config"]
+
+    logger.debug(f"Using config: {config}")
 
     # Check config for verbose flag first, command line flag overrides
     verbose = verbose or config.get("verbose", False)
-
-    # Update config and re-setup logging with verbose
-    config["verbose"] = verbose
-    setup_logging(config)
-
     if verbose:
-        logger.debug("Verbose logging enabled")
+        # Update config and re-setup logging with verbose
+        config["verbose"] = verbose
+        setup_logging(config)
 
     package_managers = config.get("package_managers", {})
+    logger.debug(f"Found package managers: {list(package_managers.keys())}")
 
     # Filter package managers if specified
     if manager:
-        # Check for requested managers that don't exist in config
-        for m in manager:
-            if m not in package_managers:
-                logger.warning(f"Package manager '{m}' is not defined in config")
+        if invalid_managers := [m for m in manager if m not in package_managers]:
+            console.print(
+                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
+            )
+            sys.exit(1)
         package_managers = {k: v for k, v in package_managers.items() if k in manager}
+
+    # If no managers specified, use all enabled managers
+    if not package_managers:
+        console.print("[yellow]No package managers specified or enabled[/yellow]")
+        return
 
     with console.status("[bold green]Upgrading packages...") as status:
         for name, cfg in package_managers.items():
-            # Create a new config for this package manager
-            pm_config = cfg.copy()
-            pm_config["verbose"] = verbose
-            pm_config["status"] = status
-
-            if verbose:
-                logger.debug(f"Running {name} with config: {pm_config}")
-
+            # Ensure verbose flag is set in each package manager's config
+            cfg["verbose"] = verbose
+            logger.debug(f"Running upgrade for {name} with config: {cfg}")
             run_package_manager_action(
-                name, pm_config, "upgrade", lambda pm: pm.upgrade(), verbose, status
+                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose, status
             )
 
 
