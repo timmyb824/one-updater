@@ -49,7 +49,7 @@ class PipManager(PackageManager):
         return True
 
     def _check_pyenv(self, version: str) -> bool:
-        # sourcery skip: extract-method
+        # sourcery skip: class-extract-method, extract-method
         """Check if pyenv is available and the specified version exists."""
         try:
             # Check if pyenv is installed and get root
@@ -78,6 +78,7 @@ class PipManager(PackageManager):
             return False
 
     def _get_pip_commands(self) -> list[list[str]]:
+        # sourcery skip: extract-method
         """Get all pip commands based on virtualenv/pyenv settings."""
         if self.virtualenv:
             pip_path = str(Path(self.virtualenv) / "bin" / "pip")
@@ -102,28 +103,29 @@ class PipManager(PackageManager):
                 # Get pip path for each version
                 commands = []
                 for version in self.pyenv_versions:
-                    if self._check_pyenv(version):
-                        pip_path = os.path.join(
-                            pyenv_root, "versions", version, "bin", "pip"
-                        )
-                        if self.verbose:
-                            logging.info(
-                                f"Using pip from pyenv version {version}: {pip_path}"
-                            )
-                        commands.append([pip_path])
+                    if not self._check_pyenv(version):
+                        logging.warning(f"Skipping invalid pyenv version: {version}")
+                        continue
 
-                if not commands and self.verbose:
-                    logging.warning(
-                        "No valid pyenv versions found, falling back to system pip"
+                    pip_path = os.path.join(
+                        pyenv_root, "versions", version, "bin", "pip"
                     )
-                return commands or [
-                    ["pip"]
-                ]  # Fallback to system pip if no valid versions
+                    if self.verbose:
+                        logging.info(
+                            f"Using pip from pyenv version {version}: {pip_path}"
+                        )
+                    commands.append([pip_path])
+
+                if not commands:
+                    logging.warning("No valid pyenv versions found")
+                return commands
+
             except subprocess.CalledProcessError as e:
                 logging.error(f"Error getting pyenv root: {e}")
                 if self.verbose and e.stderr:
                     logging.error(f"Error output: {e.stderr}")
-                return [["pip"]]
+                return []
+
         if self.verbose:
             logging.info("Using system pip")
         return [["pip"]]
@@ -136,10 +138,14 @@ class PipManager(PackageManager):
         """
         if not self.is_available():
             return False
-        # pip doesn't need a separate update operation
+
+        pip_commands = self._get_pip_commands()
+        if not pip_commands:
+            logging.warning("No valid pip environments found to update")
+            return False
+
         return all(
-            self.run_command(self.commands.get("update", []))
-            for _ in self._get_pip_commands()
+            self.run_command(self.commands.get("update", [])) for _ in pip_commands
         )
 
     def upgrade(self) -> bool:
@@ -147,8 +153,13 @@ class PipManager(PackageManager):
         if not self.is_available():
             return False
 
+        pip_commands = self._get_pip_commands()
+        if not pip_commands:
+            logging.warning("No valid pip environments found to upgrade")
+            return False
+
         success = True
-        for pip_cmd in self._get_pip_commands():
+        for pip_cmd in pip_commands:
             if not self._upgrade_environment(pip_cmd):
                 success = False
 
@@ -214,6 +225,7 @@ class PipManager(PackageManager):
                         package_cmd,
                         capture_output=True,
                         text=True,
+                        check=True,
                     )
                     if result.returncode != 0:
                         logging.error(
