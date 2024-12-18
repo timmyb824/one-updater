@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.2 (2024-12-18)
+
+### Bug Fixes
+
+- Add 'sudo' to snap package manager update and upgrade commands
+  ([`65b512a`](https://github.com/timmyb824/one-updater/commit/65b512a6868c12242f0f7d0063cd2ac8ef7eb88b))
+
+
 ## v0.4.1 (2024-12-17)
 
 ### Refactoring
