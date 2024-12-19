@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.3 (2024-12-19)
+
+### Documentation
+
+- Add MIT license
+  ([`69f4685`](https://github.com/timmyb824/one-updater/commit/69f4685aec566514610e89d00e6c97e7cb82b4c7))
+
+
 ## v0.4.2 (2024-12-18)
 
 ### Bug Fixes
