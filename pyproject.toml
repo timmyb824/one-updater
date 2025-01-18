@@ -1,6 +1,6 @@
 [project]
 name = "one-updater"
-version = "0.4.3"
+version = "0.4.6"
 description = "One tool many packages"
 authors = [{ name = "Tim Bryant", email = "timothybryant3@gmail.com" }]
 readme = "README.md"
