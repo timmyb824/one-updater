@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.5 (2025-01-18)
+
+### Continuous Integration
+
+- Add verbose option for PyPI publish step
+  ([`d43d881`](https://github.com/timmyb824/one-updater/commit/d43d88151b77bf8de1e73b465d9898e8418279e8))
+
+
 ## v0.4.4 (2025-01-18)
 
 ### Bug Fixes
