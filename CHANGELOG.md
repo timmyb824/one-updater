@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.9 (2025-01-18)
+
+### Chores
+
+- Sync version with changelog; issue with auto setting version
+  ([`f22a251`](https://github.com/timmyb824/one-updater/commit/f22a251b20b171c653d3f900ebc92ce7f58c91e4))
+
+
 ## v0.4.8 (2025-01-18)
 
 ### Chores
