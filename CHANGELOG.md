@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.8 (2025-01-18)
+
+### Chores
+
+- Rebuild bin on linux
+  ([`d863362`](https://github.com/timmyb824/one-updater/commit/d8633620e56469525c5b9db6268a718cf05e4f6d))
+
+
 ## v0.4.7 (2025-01-18)
 
 ### Bug Fixes
