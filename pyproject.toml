@@ -1,6 +1,6 @@
 [project]
 name = "one-updater"
-version = "0.4.6"
+version = "0.4.7"
 description = "One tool many packages"
 authors = [{ name = "Tim Bryant", email = "timothybryant3@gmail.com" }]
 readme = "README.md"
@@ -22,9 +22,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 pythonpath = [".", "one_updater"]
 filterwarnings = [
-    "error",
-    "ignore::RuntimeWarning",
-    "ignore::DeprecationWarning",
+  "error",
+  "ignore::RuntimeWarning",
+  "ignore::DeprecationWarning",
 ]
 
 [project.scripts]
@@ -32,31 +32,31 @@ one-updater = "one_updater.cli:cli"
 
 [tool.semantic_release.commit_parser_options]
 allowed_tags = [
-    "build",
-    "chore",
-    "refactor",
-    "fix",
-    "perf",
-    "style",
-    "docs",
-    "ci",
-    "test",
-    "feat",
-    ":boom:",
-    "BREAKING_CHANGE",
+  "build",
+  "chore",
+  "refactor",
+  "fix",
+  "perf",
+  "style",
+  "docs",
+  "ci",
+  "test",
+  "feat",
+  ":boom:",
+  "BREAKING_CHANGE",
 ]
 major_tags = [":boom:", "BREAKING_CHANGE"]
 minor_tags = ["feat"]
 patch_tags = [
-    "fix",
-    "perf",
-    "style",
-    "docs",
-    "ci",
-    "test",
-    "refactor",
-    "chore",
-    "build",
+  "fix",
+  "perf",
+  "style",
+  "docs",
+  "ci",
+  "test",
+  "refactor",
+  "chore",
+  "build",
 ]
 
 [tool.semantic_release]
