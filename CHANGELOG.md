@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.4 (2025-01-18)
+
+### Bug Fixes
+
+- Update poetry version to 2.0.0 in CI workflow. Fix binary file path renaming
+  ([`32071a4`](https://github.com/timmyb824/one-updater/commit/32071a49f741d5f2d290591a8fcad807656abcfd))
+
+### Chores
+
+- Update dependencies and exclude build files from version control
+  ([`2600d59`](https://github.com/timmyb824/one-updater/commit/2600d59aaa9724d8f6132df3e40f26869764d903))
+
+
 ## v0.4.3 (2024-12-19)
 
 ### Documentation
