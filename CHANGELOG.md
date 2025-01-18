@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.7 (2025-01-18)
+
+### Bug Fixes
+
+- Update version to 0.4.6 in pyproject.toml
+  ([`a6673fa`](https://github.com/timmyb824/one-updater/commit/a6673fa5f2bd863d0b3253fb89c1403b79729a84))
+
+
 ## v0.4.6 (2025-01-18)
 
 ### Refactoring
