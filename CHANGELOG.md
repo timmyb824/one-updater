@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.4.6 (2025-01-18)
+
+### Refactoring
+
+- Post commit for updating to poetry 2.0
+  ([`5044561`](https://github.com/timmyb824/one-updater/commit/5044561ab6c4a78c2cd6d4b5059af59069d1cc55))
+
+
 ## v0.4.5 (2025-01-18)
 
 ### Continuous Integration
