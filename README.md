@@ -44,6 +44,13 @@ To upgrade to the latest version:
 pip install --upgrade one-updater
 ```
 
+Use one of the pre-built executables in `one_updater/bin` e.g.:
+
+```bash
+sudo cp one-updater-linux /usr/local/bin/one-updater
+sudo chmod +x /usr/local/bin/one-updater
+```
+
 ## Usage
 
 ### Basic Usage

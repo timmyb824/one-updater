@@ -1,7 +1,6 @@
 import importlib.resources as resources
 import logging
 import os
-import shutil
 import sys
 from typing import Optional
 
@@ -106,17 +105,53 @@ def init_config(config_path: Optional[str] = None):
         )
         return
 
-    # Copy default config to user's config directory
-    default_config = resources.files("one_updater").joinpath(
-        "configs/default_config.yaml"
-    )
-    with resources.as_file(default_config) as default_config_path:
-        shutil.copy(default_config_path, config_path)
-        console.print(f"[green]Configuration file created at {config_path}[/green]")
-        if config_path != get_default_config_path():
-            console.print(
-                "[yellow]You used a custom config file path. Remember to use the same --config (or -c) flag when running other commands.[/yellow]"
+    try:
+        # First try using importlib.resources (development environment)
+        default_config = resources.files("one_updater").joinpath(
+            "configs/default_config.yaml"
+        )
+        with default_config.open("rb") as f:
+            config_content = f.read()
+    except (TypeError, OSError):
+        # If that fails, we're probably in a PyInstaller bundle
+        if getattr(sys, "frozen", False):
+            # Running in a PyInstaller bundle
+            bundle_dir = os.path.dirname(sys.executable)
+            if hasattr(sys, "_MEIPASS"):
+                bundle_dir = sys._MEIPASS
+            default_config_path = os.path.join(
+                bundle_dir, "one_updater", "configs", "default_config.yaml"
             )
+            try:
+                with open(default_config_path, "rb") as f:
+                    config_content = f.read()
+            except FileNotFoundError:
+                # As a last resort, embed a minimal default config
+                config_content = b"""verbose: false
+logging:
+  level: "INFO"
+  format: "%(message)s"
+package_managers:
+  homebrew:
+    enabled: true
+    commands:
+      update: ["brew", "update"]
+      upgrade: ["brew", "upgrade"]
+  apt:
+    enabled: true
+    commands:
+      update: ["sudo", "apt-get", "update"]
+      upgrade: ["sudo", "apt-get", "upgrade", "-y"]"""
+
+    # Write the config file
+    with open(config_path, "wb") as f:
+        f.write(config_content)
+
+    console.print(f"[green]Created new configuration file at {config_path}[/green]")
+    if config_path != get_default_config_path():
+        console.print(
+            "[yellow]You used a custom config file path. Remember to use the same --config (or -c) flag when running other commands.[/yellow]"
+        )
 
 
 def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
