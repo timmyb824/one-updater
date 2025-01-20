@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v0.5.0 (2025-01-20)
+
+### Bug Fixes
+
+- No such file error using init command with pyinstaller exec
+  ([`040c8c2`](https://github.com/timmyb824/one-updater/commit/040c8c21a2978135152a61cd7179c46776c37f2f))
+
+### Features
+
+- Add pre-built executable for Linux in one_updater/bin
+  ([`c82a934`](https://github.com/timmyb824/one-updater/commit/c82a934f2a0f9cb87a9f9ff0d1ca39d4427d8980))
+
+- Rename macOS updater binary for consistency
+  ([`9d49e25`](https://github.com/timmyb824/one-updater/commit/9d49e258fdc5d8d05eaebfcb692ae8a8fe4288ff))
+
+- Update version to 0.5.0 in pyproject.toml
+  ([`454faa6`](https://github.com/timmyb824/one-updater/commit/454faa6e2255872bdc0951432e03ce7a44de8cbe))
+
+
 ## v0.4.9 (2025-01-18)
 
 ### Chores
