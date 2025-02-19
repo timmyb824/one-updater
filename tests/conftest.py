@@ -1,41 +1,38 @@
-"""Pytest configuration for one-updater tests."""
+"""Test fixtures for one-updater."""
 
-import logging
 import os
 
 import pytest
-from click.testing import CliRunner
-
-
-@pytest.fixture(autouse=True)
-def setup_test_logging():
-    """Set up logging for tests."""
-    # Save original handlers
-    root_handlers = logging.root.handlers[:]
-    logger = logging.getLogger("one-updater")
-    logger_handlers = logger.handlers[:]
-
-    # Create a test handler for our logger
-    logger.handlers = []
-    test_handler = logging.StreamHandler()
-    test_handler.setLevel(logging.DEBUG)
-    logger.addHandler(test_handler)
-    logger.setLevel(logging.DEBUG)
-
-    yield
-
-    # Restore original handlers
-    logging.root.handlers = root_handlers
-    logger.handlers = logger_handlers
+import yaml
 
 
 @pytest.fixture
-def cli_runner():
-    """Create a Click CLI test runner."""
-    return CliRunner()
+def test_config_path(tmp_path):
+    """Create a temporary test configuration file."""
+    config_path = tmp_path / "test_config.yaml"
 
+    test_config = {
+        "package_managers": {
+            "brew": {
+                "enabled": True,
+                "commands": {
+                    "update": ["brew", "update"],
+                    "upgrade": ["brew", "upgrade"],
+                },
+            },
+            "pip": {
+                "enabled": True,
+                "commands": {
+                    "update": ["pip", "install", "--upgrade", "pip"],
+                    "upgrade": [],
+                },
+            },
+        }
+    }
 
-@pytest.fixture
-def test_config_path():
-    """Get the path to the test configuration file."""
-    return os.path.join(os.path.dirname(__file__), "test_config.yaml")
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.dump(test_config, f)
+
+    return str(config_path)
