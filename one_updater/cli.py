@@ -332,6 +332,11 @@ https://github.com/timmyb824/one-updater
         sys.exit(1)
 
     try:
+        # Handle version command before loading config
+        if args.command == "version":
+            show_version()
+            return
+
         # Set up initial logging based on command line verbose flag
         setup_logging({"verbose": args.verbose})
         logger.debug(f"Command line arguments: {args}")
@@ -363,8 +368,6 @@ https://github.com/timmyb824/one-updater
             update_managers(config, args.manager, args.verbose)
         elif args.command == "upgrade":
             upgrade_managers(config, args.manager, args.verbose)
-        elif args.command == "version":
-            show_version()
         else:
             parser.print_help()
             sys.exit(1)
