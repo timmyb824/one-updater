@@ -30,3 +30,23 @@ def test_cli_list_managers(monkeypatch, test_config_path):
         assert "brew" in output.lower()
         assert "pip" in output.lower()
         assert "enabled" in output.lower()
+
+
+def test_cli_version(monkeypatch):
+    """Test that version command works."""
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    with patch("sys.stdout", new=stdout), patch("sys.stderr", new=stderr):
+        monkeypatch.setattr(sys, "argv", ["one-updater", "version"])
+
+        try:
+            main()
+        except SystemExit as e:
+            assert e.code == 0
+
+        output = stdout.getvalue() + stderr.getvalue()
+
+        # Check that version information is shown
+        assert "version" in output.lower()
+        assert "one-updater" in output.lower()

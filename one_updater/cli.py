@@ -188,6 +188,17 @@ def upgrade_managers(config: dict, managers: list[str], verbose: bool) -> None:
             )
 
 
+def show_version():
+    """Show version information."""
+    try:
+        from importlib.metadata import version
+
+        one_updater_version = version("one-updater")
+        console.print(f"[blue]one-updater version {one_updater_version}[/blue]")
+    except ImportError:
+        console.print("[red]Error: Could not determine version[/red]")
+
+
 def main():
     """Main entry point for the CLI."""
     description = """
@@ -302,6 +313,17 @@ https://github.com/timmyb824/one-updater
         parents=[common_parser, manager_parser],
     )
 
+    version_help = """
+    Show version information.
+    """
+    subparsers.add_parser(
+        "version",
+        help="show version information",
+        description=version_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser],
+    )
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -341,6 +363,8 @@ https://github.com/timmyb824/one-updater
             update_managers(config, args.manager, args.verbose)
         elif args.command == "upgrade":
             upgrade_managers(config, args.manager, args.verbose)
+        elif args.command == "version":
+            show_version()
         else:
             parser.print_help()
             sys.exit(1)
