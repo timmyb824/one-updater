@@ -1,6 +1,30 @@
 # CHANGELOG
 
 
+## v0.6.0 (2025-02-19)
+
+### Breaking_change
+
+- Refactor cli to stop using click and use argparse instead
+  ([`46472b9`](https://github.com/timmyb824/one-updater/commit/46472b969aad11278ffdc41141951f56e96ebd52))
+
+### Features
+
+- Add support for uv package manager
+  ([`444d5f5`](https://github.com/timmyb824/one-updater/commit/444d5f53889ee2972ca6578c5c5d0ced721f7ae1))
+
+- Add version command to show version information
+  ([`c24510c`](https://github.com/timmyb824/one-updater/commit/c24510c416894a040554ef17ff65e29d66146cc2))
+
+### Refactoring
+
+- Handle version command before loading config in CLI script
+  ([`6135387`](https://github.com/timmyb824/one-updater/commit/6135387ff61e570a872ce581efa5a2d6f15f3323))
+
+- Update project dependencies and script name in pyproject.toml
+  ([`5c06ace`](https://github.com/timmyb824/one-updater/commit/5c06aceb992978a173498b5f1770476aa03379a9))
+
+
 ## v0.5.1 (2025-02-19)
 
 ### Refactoring
