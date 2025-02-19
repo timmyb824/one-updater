@@ -5,7 +5,7 @@ repos:
       - id: pre-commit-update
 
   - repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.31.0
+    rev: v1.34.0
     hooks:
       - id: sourcery
         # * review only changed lines:
@@ -13,24 +13,23 @@ repos:
         args: [--diff=git diff HEAD, --no-summary, one_updater/]
 
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.0
     hooks:
       - id: isort
         args: ["--profile", "black"]
 
-  - repo: https://github.com/python-poetry/poetry
-    rev: "2.0.1"
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.6.1
     hooks:
-      - id: poetry-check
-      - id: poetry-lock
-        # - id: poetry-export
-        # args: ["-f", "requirements.txt", "-o", "requirements.txt"]
+      - id: uv-lock
+      - id: uv-export
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -55,7 +54,7 @@ repos:
       - id: ripsecrets
 
   - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.88.2
+    rev: v3.88.10
     hooks:
       - id: trufflehog
         name: TruffleHog

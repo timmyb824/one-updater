@@ -7,17 +7,12 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = ["click", "pyyaml", "rich", "python-semantic-release"]
 
-[tool.poetry.group.dev.dependencies]
-autopep8 = "^2.3.1"
-black = "^24.8.0"
-pytest = "^8.3.3"
-pre-commit = "^3.8.0"
-isort = "^5.13.2"
-pyinstaller = "^6.11.1"
+[dependency-groups]
+dev = ["autopep8", "black", "pytest", "pre-commit", "isort", "pyinstaller"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+default-groups = []
+package = true
 
 [tool.pytest.ini_options]
 pythonpath = [".", "one_updater"]
@@ -60,15 +55,12 @@ patch_tags = [
 ]
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:tool.poetry.version"]
+version_toml = ["pyproject.toml:project.version"]
 branch = "main"
 changelog_file = "CHANGELOG.md"
-build_command = "poetry build"
+build_command = "uv build"
 dist_path = "dist/"
 upload_to_vcs_release = true
 upload_to_pypi = false
 remove_dist = false
 patch_without_tag = true
-
-[tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.8"

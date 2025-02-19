@@ -3,3 +3,4 @@ ARCHIVE/
 __pycache__/
 build/
 *.spec
+one_updater.egg-info/
