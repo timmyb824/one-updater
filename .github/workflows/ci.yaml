@@ -17,48 +17,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Python
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11.2"
+          python-version-file: "pyproject.toml"
 
-      - name: Install poetry
-        shell: bash
-        run: |
-          python -m pip install poetry==2.0.0
-
-      - name: Configure poetry
-        shell: bash
-        run: |
-          python -m poetry config virtualenvs.in-project true
-
-      - name: Cache the virtualenv
-        uses: actions/cache@v4
-        with:
-          path: ./.venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/poetry.lock') }}
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          python -m poetry install --no-root
+      - name: Install the project
+        run: uv sync --all-extras --dev
 
       - name: Code quality checks
         shell: bash
         run: |
-          poetry run python -m black --check .
+          uv run black --check .
 
       - name: Run unit tests
         shell: bash
         run: |
-          poetry run python -m pytest -xvvv tests/
+          uv run pytest -xvvv tests/
 
       - name: Test run the tool
         if: success()
         shell: bash
         run: |
           export PYTHONPATH="${PYTHONPATH}:./one_updater"
-          python -m poetry run python one_updater/cli.py version
+          uv run one_updater/cli.py version
 
   Release:
     needs: Test
@@ -78,20 +63,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Python
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: "Set up Python"
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11.2"
+          python-version-file: "pyproject.toml"
 
-      - name: Install poetry
-        shell: bash
-        run: |
-          python -m pip install poetry==2.0.0
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          python -m poetry install --no-root
+      - name: Install the project
+        run: uv sync --all-extras --dev
 
       - name: Prepare package for release
         id: package_release
@@ -101,9 +82,9 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          poetry run semantic-release version
-          poetry run semantic-release changelog
-          poetry run semantic-release publish
+          uv run semantic-release version
+          uv run semantic-release changelog
+          uv run semantic-release publish
 
       - name: Check if dist folder has contents
         id: check_dist
