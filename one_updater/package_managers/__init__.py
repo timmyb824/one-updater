@@ -12,6 +12,8 @@ from .npm import NpmManager
 from .pip import PipManager
 from .pipx import PipxManager
 from .pkgx import PkgxManager
+from .tldr import TldrManager
+from .uv import UvManager
 from .vagrant import VagrantPluginManager
 
 __all__ = [
@@ -30,4 +32,6 @@ __all__ = [
     "PipxManager",
     "PkgxManager",
     "VagrantPluginManager",
+    "TldrManager",
+    "UvManager",
 ]

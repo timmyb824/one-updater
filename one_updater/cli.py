@@ -1,157 +1,87 @@
-import importlib.resources as resources
+#!/usr/bin/env python3
+
+import argparse
 import logging
 import os
 import sys
 from typing import Optional
 
-import click
 import yaml
 from rich.console import Console
-from rich.logging import RichHandler
 
 from one_updater.package_managers.base import PackageManager
 from one_updater.package_managers.registry import PackageManagerRegistry
 
 console = Console()
-logger = logging.getLogger("one-updater")
+error_console = Console(stderr=True)
+logger = logging.getLogger(__name__)
 
 
-def setup_logging(config: dict):
-    """Setup logging configuration."""
-    level = (
-        logging.DEBUG
-        if config.get("verbose", False)
-        else config.get("logging", {}).get("level", "INFO")
-    )
-
-    # Configure the root logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-
-    # Remove existing handlers from root logger
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Add rich handler to root logger
-    handler = RichHandler(console=console)
-    handler.setFormatter(
-        logging.Formatter(config.get("logging", {}).get("format", "%(message)s"))
-    )
-    root_logger.addHandler(handler)
-
-    # Also set our app logger to the same level
-    logger.setLevel(level)
+def setup_logging(config: dict) -> None:
+    """Set up logging configuration."""
+    level = logging.DEBUG if config.get("verbose", False) else logging.INFO
+    logging.basicConfig(level=level, format="%(levelname)-8s %(message)s", force=True)
 
 
-def get_default_config_path():
-    """Get the default config path."""
-    config_dir = os.path.expanduser("~/.config/one-updater")
-    return os.path.join(config_dir, "config.yaml")
+def get_default_config_path() -> str:
+    """Get the default configuration file path."""
+    return os.path.expanduser("~/.config/one-updater/config.yaml")
 
 
-def load_config(config_path: Optional[str] = None):
-    # sourcery skip: extract-method
-    """Load configuration from file.
+def load_config(config_path: Optional[str] = None) -> dict:
+    """Load configuration from file."""
+    if not config_path:
+        config_path = get_default_config_path()
 
-    Args:
-        config_path: Optional path to config file. If not provided,
-                    uses default location (~/.config/one-updater/config.yaml)
-
-    Returns:
-        dict: Loaded configuration
-    """
-    config_path = config_path or get_default_config_path()
     logger.debug(f"Loading config from: {config_path}")
 
     if not os.path.exists(config_path):
-        console.print(
-            f"[red]Config file not found: {config_path}\nRun 'one-updater init' to create a new configuration file.[/red]"
-        )
+        error_console.print(f"[red]Error: Config file not found: {config_path}[/red]")
         sys.exit(1)
 
-    try:
-        with open(config_path, encoding="utf-8") as f:
-            logger.debug("Reading YAML file...")
-            content = f.read()
-            logger.debug(f"File contents: {content}")
-            config = yaml.safe_load(content)
-            logger.debug(f"Parsed YAML: {config}")
-            if not isinstance(config, dict):
-                raise ValueError("Invalid YAML: not a dictionary")
-            return config
-    except Exception as e:
-        raise RuntimeError(f"Error loading config file: {e}") from e
+    with open(config_path, "r", encoding="utf-8") as f:
+        try:
+            return yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            error_console.print(f"[red]Error: Invalid YAML in config file: {e}[/red]")
+            sys.exit(1)
 
 
-def init_config(config_path: Optional[str] = None):
-    """Initialize a new configuration file.
-
-    Args:
-        config_path: Optional path to create config file. If not provided,
-                    uses default location (~/.config/one-updater/config.yaml)
-    """
-    if not config_path:
-        raise ValueError("config_path must be provided")
-
-    config_dir = os.path.dirname(config_path)
-
-    # Create config directory if it doesn't exist
-    os.makedirs(config_dir, exist_ok=True)
-
-    # Don't overwrite existing config
+def init_config(config_path: str) -> None:
+    """Initialize a new configuration file."""
     if os.path.exists(config_path):
-        console.print(
-            f"[blue]Configuration file already exists at {config_path}[/blue]"
-        )
+        console.print(f"[yellow]Config file already exists at {config_path}[/yellow]")
         return
 
-    try:
-        # First try using importlib.resources (development environment)
-        default_config = resources.files("one_updater").joinpath(
-            "configs/default_config.yaml"
-        )
-        with default_config.open("rb") as f:
-            config_content = f.read()
-    except (TypeError, OSError):
-        # If that fails, we're probably in a PyInstaller bundle
-        if getattr(sys, "frozen", False):
-            # Running in a PyInstaller bundle
-            bundle_dir = os.path.dirname(sys.executable)
-            if hasattr(sys, "_MEIPASS"):
-                bundle_dir = sys._MEIPASS
-            default_config_path = os.path.join(
-                bundle_dir, "one_updater", "configs", "default_config.yaml"
-            )
-            try:
-                with open(default_config_path, "rb") as f:
-                    config_content = f.read()
-            except FileNotFoundError:
-                # As a last resort, embed a minimal default config
-                config_content = b"""verbose: false
-logging:
-  level: "INFO"
-  format: "%(message)s"
-package_managers:
-  homebrew:
-    enabled: true
-    commands:
-      update: ["brew", "update"]
-      upgrade: ["brew", "upgrade"]
-  apt:
-    enabled: true
-    commands:
-      update: ["sudo", "apt-get", "update"]
-      upgrade: ["sudo", "apt-get", "upgrade", "-y"]"""
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-    # Write the config file
-    with open(config_path, "wb") as f:
-        f.write(config_content)
+    # Default configuration
+    default_config = {
+        "verbose": False,
+        "package_managers": {
+            "brew": {
+                "enabled": True,
+                "commands": {
+                    "update": ["brew", "update"],
+                    "upgrade": ["brew", "upgrade"],
+                },
+            },
+            "pip": {
+                "enabled": True,
+                "commands": {
+                    "update": ["pip", "install", "--upgrade", "pip"],
+                    "upgrade": [],
+                },
+            },
+        },
+    }
 
-    console.print(f"[green]Created new configuration file at {config_path}[/green]")
-    if config_path != get_default_config_path():
-        console.print(
-            "[yellow]You used a custom config file path. Remember to use the same --config (or -c) flag when running other commands.[/yellow]"
-        )
+    # Write configuration
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.dump(default_config, f, default_flow_style=False)
+
+    console.print(f"[green]Created new config file at {config_path}[/green]")
 
 
 def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
@@ -159,7 +89,7 @@ def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
     try:
         return PackageManagerRegistry.get_manager(name, config)
     except ValueError as e:
-        logger.warning(str(e))
+        error_console.print(f"[red]Error: {str(e)}[/red]")
         return None
 
 
@@ -172,7 +102,6 @@ def run_package_manager_action(
 
     # Check if the command is configured
     commands = cfg.get("commands", {})
-
     if action_name not in commands:
         console.print(
             f"[yellow]! {name} does not have a {action_name} command configured[/yellow]"
@@ -183,7 +112,7 @@ def run_package_manager_action(
     cfg["verbose"] = verbose
     cfg["status"] = status
 
-    logger.debug(f"Config for {name}: {cfg}")  # Debug log the config
+    logger.debug(f"Config for {name}: {cfg}")
 
     if pm := get_package_manager(name, cfg):
         # strip e at end of action_name if it exists
@@ -195,76 +124,70 @@ def run_package_manager_action(
             console.print(f"[red]✗ {name} {action_name} failed[/red]")
 
 
-def common_options(f):
-    """Common options for all commands."""
-    f = click.option(
-        "--config",
-        "-c",
-        help="Path to config file (default: ~/.config/one-updater/config.yaml)",
-        default=None,
-    )(f)
-    return f
-
-
-@click.group()
-@common_options
-@click.pass_context
-def cli(ctx, config):
-    """One Update - Update all your package managers with one command."""
-    ctx.ensure_object(dict)
-
-    # Set up initial logging with default config
-    setup_logging({"verbose": False})
-
-    # Convert relative path to absolute path if config is provided
-    if config:
-        config = os.path.abspath(config)
-        logger.debug(f"Using provided config path: {config}")
-    else:
-        logger.debug("No config path provided, using default")
-    ctx.obj["config_path"] = config or get_default_config_path()
-    logger.debug(f"Final config path: {ctx.obj['config_path']}")
-
-    # Skip config checks for commands that don't need it
-    if ctx.invoked_subcommand in ["init", "version"]:
+def list_managers(config: dict) -> None:
+    """List all configured package managers."""
+    package_managers = config.get("package_managers", {})
+    if not package_managers:
+        console.print("[yellow]No package managers configured[/yellow]")
         return
 
-    if not os.path.exists(ctx.obj["config_path"]):
-        console.print(
-            f"[red]Config file not found at {ctx.obj['config_path']}\n"
-            "Run 'one-updater init' to create a new configuration file.[/red]"
-        )
-        sys.exit(1)
-
-    try:
-        # Load config and update logging
-        logger.debug("Loading config file...")
-        ctx.obj["config"] = load_config(ctx.obj["config_path"])
-        logger.debug(f"Loaded config from {ctx.obj['config_path']}")
-        logger.debug(f"Config contents: {ctx.obj['config']}")
-
-        # Update logging with loaded config
-        if ctx.obj["config"].get("verbose", False):
-            setup_logging(ctx.obj["config"])
-    except Exception as e:
-        console.print(f"[red]Error loading config file: {e}[/red]")
-        sys.exit(2)
+    console.print("\n[bold]Configured Package Managers:[/bold]")
+    for name, cfg in package_managers.items():
+        enabled = cfg.get("enabled", True)
+        status = "[green]enabled[/green]" if enabled else "[red]disabled[/red]"
+        console.print(f"  • {name}: {status}")
 
 
-@cli.command("init", help="Initialize a new configuration file")
-@common_options
-def init(config):
-    """Initialize a new configuration file."""
-    # Use the provided config path or default
-    config_path = os.path.abspath(config) if config else get_default_config_path()
-    try:
-        init_config(config_path)
-    except Exception as e:
-        console.print(f"[red]Error initializing config file: {e}[/red]")
-        sys.exit(1)
+def update_managers(config: dict, managers: list[str], verbose: bool) -> None:
+    """Update specified package managers."""
+    package_managers = config.get("package_managers", {})
+
+    # Filter package managers if specified
+    if managers:
+        if invalid_managers := [m for m in managers if m not in package_managers]:
+            console.print(
+                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
+            )
+            sys.exit(1)
+        package_managers = {k: v for k, v in package_managers.items() if k in managers}
+
+    # If no managers specified, use all enabled managers
+    if not package_managers:
+        console.print("[yellow]No package managers specified or enabled[/yellow]")
+        return
+
+    with console.status("[bold green]Updating package managers...") as status:
+        for name, cfg in package_managers.items():
+            run_package_manager_action(
+                name, cfg, "update", lambda pm: pm.update(), verbose, status
+            )
 
 
-@cli.command("version", help="Show version information")
+def upgrade_managers(config: dict, managers: list[str], verbose: bool) -> None:
+    """Upgrade packages for specified package managers."""
+    package_managers = config.get("package_managers", {})
+
+    # Filter package managers if specified
+    if managers:
+        if invalid_managers := [m for m in managers if m not in package_managers]:
+            console.print(
+                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
+            )
+            sys.exit(1)
+        package_managers = {k: v for k, v in package_managers.items() if k in managers}
+
+    # If no managers specified, use all enabled managers
+    if not package_managers:
+        console.print("[yellow]No package managers specified or enabled[/yellow]")
+        return
+
+    with console.status("[bold green]Upgrading packages...") as status:
+        for name, cfg in package_managers.items():
+            run_package_manager_action(
+                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose, status
+            )
+
+
 def show_version():
     """Show version information."""
     try:
@@ -276,151 +199,183 @@ def show_version():
         console.print("[red]Error: Could not determine version[/red]")
 
 
-@cli.command()
-@common_options
-@click.option(
-    "--manager", "-m", multiple=True, help="Specific package manager(s) to update"
-)
-@click.option(
-    "--verbose", "-v", is_flag=True, help="Show verbose output from package managers"
-)
-@click.pass_context
-def update(ctx, config, manager, verbose):
-    """Update package manager indices/registries."""
-    # Load the config file specified by the -c flag
-    if config:
-        config_path = os.path.abspath(config)
-        logger.debug(f"Loading config from command line path: {config_path}")
-        try:
-            config = load_config(config_path)
-        except Exception as e:
-            console.print(f"[red]Error loading config file: {e}[/red]")
-            sys.exit(1)
-    else:
-        if not ctx.obj.get("config"):
-            console.print("[red]Error: No configuration loaded[/red]")
-            sys.exit(1)
-        config = ctx.obj["config"]
+def main():
+    """Main entry point for the CLI."""
+    description = """
+One Update - Update all your package managers with one command
 
-    logger.debug(f"Using config: {config}")
+A simple tool to manage multiple package managers from a single interface.
+Updates and upgrades can be performed on all or selected package managers.
 
-    # Check config for verbose flag first, command line flag overrides
-    verbose = verbose or config.get("verbose", False)
-    if verbose:
-        # Update config and re-setup logging with verbose
-        config["verbose"] = verbose
-        setup_logging(config)
+Examples:
+  %(prog)s init                     Create a new configuration file
+  %(prog)s list-managers           List all configured package managers
+  %(prog)s update -m brew pip      Update only brew and pip
+  %(prog)s upgrade                 Upgrade all enabled package managers
+  %(prog)s -h                      Show this help message
+"""
 
-    package_managers = config.get("package_managers", {})
-    logger.debug(f"Found package managers: {list(package_managers.keys())}")
+    epilog = """
+For more information and examples, visit:
+https://github.com/timmyb824/one-updater
+"""
 
-    # Filter package managers if specified
-    if manager:
-        if invalid_managers := [m for m in manager if m not in package_managers]:
-            console.print(
-                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
-            )
-            sys.exit(1)
-        package_managers = {k: v for k, v in package_managers.items() if k in manager}
+    parser = argparse.ArgumentParser(
+        description=description,
+        epilog=epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    # If no managers specified, use all enabled managers
-    if not package_managers:
-        console.print("[yellow]No package managers specified or enabled[/yellow]")
-        return
+    subparsers = parser.add_subparsers(
+        dest="command",
+        title="commands",
+        description="available commands",
+        help="command help",
+        metavar="COMMAND",
+    )
 
-    with console.status("[bold green]Updating package managers...") as status:
-        for name, cfg in package_managers.items():
-            # Ensure verbose flag is set in each package manager's config
-            cfg["verbose"] = verbose
-            logger.debug(f"Running update for {name} with config: {cfg}")
-            run_package_manager_action(
-                name, cfg, "update", lambda pm: pm.update(), verbose, status
-            )
+    # Common arguments for all commands
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_group = common_parser.add_argument_group("common options")
+    common_group.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="enable verbose output (overrides config file setting)",
+    )
+    common_group.add_argument(
+        "-c",
+        "--config",
+        metavar="PATH",
+        help="path to config file (default: ~/.config/one-updater/config.yaml)",
+    )
 
+    # Manager selection arguments for update/upgrade commands
+    manager_parser = argparse.ArgumentParser(add_help=False)
+    manager_group = manager_parser.add_argument_group("manager selection")
+    manager_group.add_argument(
+        "-m",
+        "--manager",
+        metavar="NAME",
+        action="append",
+        help="specific package manager(s) to process (can be specified multiple times)",
+    )
 
-@cli.command()
-@common_options
-@click.option(
-    "--manager", "-m", multiple=True, help="Specific package manager(s) to upgrade"
-)
-@click.option(
-    "--verbose", "-v", is_flag=True, help="Show verbose output from package managers"
-)
-@click.pass_context
-def upgrade(ctx, config, manager, verbose):
-    """Upgrade all packages for specified package managers."""
-    # Load the config file specified by the -c flag
-    if config:
-        config_path = os.path.abspath(config)
-        logger.debug(f"Loading config from command line path: {config_path}")
-        try:
-            config = load_config(config_path)
-        except Exception as e:
-            console.print(f"[red]Error loading config file: {e}[/red]")
-            sys.exit(1)
-    else:
-        if not ctx.obj.get("config"):
-            console.print("[red]Error: No configuration loaded[/red]")
-            sys.exit(1)
-        config = ctx.obj["config"]
+    # Add subcommands with detailed help
+    init_help = """
+    Initialize a new configuration file with default settings.
+    If no config path is provided, creates ~/.config/one-updater/config.yaml
+    """
+    subparsers.add_parser(
+        "init",
+        help="initialize a new configuration file",
+        description=init_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser],
+    )
 
-    logger.debug(f"Using config: {config}")
+    list_help = """
+    List all package managers and their current status.
+    Shows whether each manager is enabled or disabled.
+    Use -v for detailed configuration information.
+    """
+    subparsers.add_parser(
+        "list-managers",
+        help="list all configured package managers",
+        description=list_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser],
+    )
 
-    # Check config for verbose flag first, command line flag overrides
-    verbose = verbose or config.get("verbose", False)
-    if verbose:
-        # Update config and re-setup logging with verbose
-        config["verbose"] = verbose
-        setup_logging(config)
+    update_help = """
+    Update package manager indices/registries.
+    If no managers are specified, updates all enabled managers.
+    Use -m to specify specific managers to update.
+    """
+    subparsers.add_parser(
+        "update",
+        help="update package manager indices",
+        description=update_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser, manager_parser],
+    )
 
-    package_managers = config.get("package_managers", {})
-    logger.debug(f"Found package managers: {list(package_managers.keys())}")
+    upgrade_help = """
+    Upgrade packages for specified package managers.
+    If no managers are specified, upgrades all enabled managers.
+    Use -m to specify specific managers to upgrade.
+    """
+    subparsers.add_parser(
+        "upgrade",
+        help="upgrade packages for package managers",
+        description=upgrade_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser, manager_parser],
+    )
 
-    # Filter package managers if specified
-    if manager:
-        if invalid_managers := [m for m in manager if m not in package_managers]:
-            console.print(
-                f"[red]Error: Invalid package manager(s): {', '.join(invalid_managers)}[/red]"
-            )
-            sys.exit(1)
-        package_managers = {k: v for k, v in package_managers.items() if k in manager}
+    version_help = """
+    Show version information.
+    """
+    subparsers.add_parser(
+        "version",
+        help="show version information",
+        description=version_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser],
+    )
 
-    # If no managers specified, use all enabled managers
-    if not package_managers:
-        console.print("[yellow]No package managers specified or enabled[/yellow]")
-        return
+    # Parse arguments
+    args = parser.parse_args()
 
-    with console.status("[bold green]Upgrading packages...") as status:
-        for name, cfg in package_managers.items():
-            # Ensure verbose flag is set in each package manager's config
-            cfg["verbose"] = verbose
-            logger.debug(f"Running upgrade for {name} with config: {cfg}")
-            run_package_manager_action(
-                name, cfg, "upgrade", lambda pm: pm.upgrade(), verbose, status
-            )
-
-
-@cli.command()
-@common_options
-@click.pass_context
-def list_managers(ctx, config):
-    """List all configured package managers and their status."""
-    config = ctx.obj.get("config", {})
-    if not config:
-        console.print("[red]Error: No package managers configured[/red]")
+    if not args.command:
+        parser.print_help()
         sys.exit(1)
 
-    package_managers = config.get("package_managers", {})
-    if not package_managers:
-        console.print("[yellow]No package managers found in config[/yellow]")
-        return
+    try:
+        # Handle version command before loading config
+        if args.command == "version":
+            show_version()
+            return
 
-    console.print("\n[bold]Configured Package Managers:[/bold]")
-    for name, cfg in package_managers.items():
-        enabled = cfg.get("enabled", True)
-        status = "[green]enabled[/green]" if enabled else "[red]disabled[/red]"
-        console.print(f"  • {name}: {status}")
+        # Set up initial logging based on command line verbose flag
+        setup_logging({"verbose": args.verbose})
+        logger.debug(f"Command line arguments: {args}")
+
+        # Load config file if needed
+        if args.command != "init":
+            config_path = os.path.abspath(
+                os.path.expanduser(args.config or get_default_config_path())
+            )
+            config = load_config(config_path)
+
+            # Command line verbose flag overrides config file
+            if args.verbose:
+                config["verbose"] = True
+                setup_logging(config)
+
+            logger.debug(f"Loaded config from {config_path}")
+            logger.debug(f"Config contents: {config}")
+
+        # Execute command
+        if args.command == "init":
+            config_path = os.path.abspath(
+                os.path.expanduser(args.config or get_default_config_path())
+            )
+            init_config(config_path)
+        elif args.command == "list-managers":
+            list_managers(config)
+        elif args.command == "update":
+            update_managers(config, args.manager, args.verbose)
+        elif args.command == "upgrade":
+            upgrade_managers(config, args.manager, args.verbose)
+        else:
+            parser.print_help()
+            sys.exit(1)
+
+    except Exception as e:
+        error_console.print(f"[red]Error: {e}[/red]")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    cli(obj={})  # pylint: disable=no-value-for-parameter
+    main()

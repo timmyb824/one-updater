@@ -122,6 +122,12 @@ package_managers:
       update: ["tldr", "--update"]
       upgrade: ["tldr", "--update"]
 
+  uv:
+    enabled: true
+    commands:
+      update: ["uv", "self", "update"]
+      upgrade: ["uv", "tool", "upgrade", "--all"]
+
   vagrant:
     enabled: true
     commands:

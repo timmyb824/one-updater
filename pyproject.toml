@@ -5,10 +5,18 @@ description = "One tool many packages"
 authors = [{ name = "Tim Bryant", email = "timothybryant3@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
-dependencies = ["click", "pyyaml", "rich", "python-semantic-release"]
+dependencies = ["pyyaml", "rich", "python-semantic-release"]
 
-[dependency-groups]
-dev = ["autopep8", "black", "pytest", "pre-commit", "isort", "pyinstaller"]
+[project.optional-dependencies]
+dev = [
+  "autopep8",
+  "black",
+  "pytest",
+  "pre-commit",
+  "isort",
+  "pyinstaller",
+  "pyyaml",
+]
 
 [tool.uv]
 default-groups = []
@@ -23,7 +31,7 @@ filterwarnings = [
 ]
 
 [project.scripts]
-one-updater = "one_updater.cli:cli"
+one-updater = "one_updater.cli:main"
 
 [tool.semantic_release.commit_parser_options]
 allowed_tags = [

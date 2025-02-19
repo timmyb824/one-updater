@@ -380,16 +380,15 @@ wheels = [
 
 [[package]]
 name = "one-updater"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "." }
 dependencies = [
-    { name = "click" },
     { name = "python-semantic-release" },
     { name = "pyyaml" },
     { name = "rich" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 dev = [
     { name = "autopep8" },
     { name = "black" },
@@ -397,25 +396,23 @@ dev = [
     { name = "pre-commit" },
     { name = "pyinstaller" },
     { name = "pytest" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "click" },
+    { name = "autopep8", marker = "extra == 'dev'" },
+    { name = "black", marker = "extra == 'dev'" },
+    { name = "isort", marker = "extra == 'dev'" },
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pyinstaller", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'dev'" },
     { name = "python-semantic-release" },
     { name = "pyyaml" },
+    { name = "pyyaml", marker = "extra == 'dev'" },
     { name = "rich" },
 ]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "autopep8" },
-    { name = "black" },
-    { name = "isort" },
-    { name = "pre-commit" },
-    { name = "pyinstaller" },
-    { name = "pytest" },
-]
+provides-extras = ["dev"]
 
 [[package]]
 name = "packaging"
