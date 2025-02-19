@@ -19,6 +19,7 @@ from .pipx import PipxManager
 from .pkgx import PkgxManager
 from .snap import SnapManager
 from .tldr import TldrManager
+from .uv import UvManager
 from .vagrant import VagrantPluginManager
 
 
@@ -45,6 +46,7 @@ class PackageManagerRegistry:
         "dnf": DnfManager,
         "flatpak": FlatpakManager,
         "pacman": PacmanManager,
+        "uv": UvManager,
     }
 
     @classmethod
