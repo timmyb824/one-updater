@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.1 (2025-02-19)
+
+### Refactoring
+
+- All changes need to stop using poetry and start using uv
+  ([`362563f`](https://github.com/timmyb824/one-updater/commit/362563fff5658a53d94accbb16be26f8ffdd642e))
+
+
 ## v0.5.0 (2025-01-20)
 
 ### Bug Fixes
