@@ -58,23 +58,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install package
-        run: uv sync
-
-      - name: Get version
-        id: version
-        run: |
-          VERSION=$(uv run python -c "from one_updater import __version__; print(__version__)")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -83,11 +66,15 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          name: v${{ steps.version.outputs.version }}
-          tag_name: v${{ steps.version.outputs.version }}
+          name: Latest Executables
+          tag_name: latest
           files: |
             artifacts/one-updater-linux/one-updater-linux
             artifacts/one-updater-darwin/one-updater-darwin
+          body: |
+            **Note**: These executables are provided for convenience. The recommended installation method is via pip:
+            ```bash
+            pip install one-updater
+            ```
           draft: false
           prerelease: false
-          generate_release_notes: true
