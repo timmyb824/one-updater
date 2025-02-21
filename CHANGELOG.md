@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.7.1 (2025-02-21)
+
+### Continuous Integration
+
+- Add Python setup and install uv in release workflow
+  ([`6f495e9`](https://github.com/timmyb824/one-updater/commit/6f495e99dd265af228e6ce0ceb4f74fd76182fc2))
+
+
 ## v0.7.0 (2025-02-21)
 
 ### Chores
