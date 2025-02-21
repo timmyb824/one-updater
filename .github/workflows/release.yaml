@@ -1,0 +1,82 @@
+name: Build Executables
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  build-executables:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: one-updater-linux
+          - os: macos-latest
+            artifact_name: one-updater-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Create executable
+        run: |
+          uv run pyinstaller --onefile \
+            --name=${{ matrix.artifact_name }} \
+            --distpath=dist \
+            one_updater/cli.py
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
+          if-no-files-found: error
+
+  create-release:
+    needs: build-executables
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(uv run python -c "from one_updater import __version__; print(__version__)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          files: |
+            artifacts/one-updater-linux/one-updater-linux
+            artifacts/one-updater-darwin/one-updater-darwin
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -72,3 +72,7 @@ upload_to_vcs_release = true
 upload_to_pypi = false
 remove_dist = false
 patch_without_tag = true
+
+[tool.setuptools.packages.find]
+include = ["one_updater*"]
+exclude = ["ARCHIVE*", "tests*", "build*"]
