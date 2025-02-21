@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.7.2 (2025-02-21)
+
+### Documentation
+
+- Update release workflow with installation note for executables
+  ([`2772bd4`](https://github.com/timmyb824/one-updater/commit/2772bd401f7493010c01edf46f074953b710c3d6))
+
+
 ## v0.7.1 (2025-02-21)
 
 ### Continuous Integration
