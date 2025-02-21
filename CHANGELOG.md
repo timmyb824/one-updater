@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v0.7.0 (2025-02-21)
+
+### Chores
+
+- Update one-updater-linux binary
+  ([`a7d4ba1`](https://github.com/timmyb824/one-updater/commit/a7d4ba1f4acd87fd3eb79a71a22dbbbd0d14416c))
+
+### Continuous Integration
+
+- Add workflow for building and releasing executables
+  ([`2621a24`](https://github.com/timmyb824/one-updater/commit/2621a243b3a64570f4e08b12e4a26e088e5b59d9))
+
+### Features
+
+- Support entering a password when prompted during brew upgrade
+  ([`076af7f`](https://github.com/timmyb824/one-updater/commit/076af7f8e1f5a67162351d325190231f6f2d65ea))
+
+### Refactoring
+
+- Rename macos updater to darwin and add newest build
+  ([`8cb842e`](https://github.com/timmyb824/one-updater/commit/8cb842e47ca0b4e2d984c2a18e899c359cad2773))
+
+
 ## v0.6.0 (2025-02-19)
 
 ### Breaking_change
