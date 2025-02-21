@@ -4,3 +4,4 @@ __pycache__/
 build/
 *.spec
 one_updater.egg-info/
+.DS_Store
