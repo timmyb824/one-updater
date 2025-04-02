@@ -1,0 +1,17 @@
+FROM --platform=linux/arm64 docker.io/python:3.11-slim
+
+# Install required system packages
+RUN apt-get update && apt-get install -y \
+    binutils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install --no-cache-dir -e .
+RUN pip install pyinstaller
+
+RUN pyinstaller --onefile one_updater/cli.py --name one-updater
+
+# The binary will be in /app/dist/one-updater
