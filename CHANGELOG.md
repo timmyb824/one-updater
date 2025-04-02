@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.8.0 (2025-04-02)
+
+### Features
+
+- Add script for building and release a linux-arm executable
+  ([`4032642`](https://github.com/timmyb824/one-updater/commit/40326429e2d2ba5a5e8ebfbdb23d81d6325ba776))
+
+### Refactoring
+
+- Change default config to have brew and apt as they are the most common package managers
+  ([`57b3cf8`](https://github.com/timmyb824/one-updater/commit/57b3cf8faa3a0d9310897eb03fc2b842d444c572))
+
+
 ## v0.7.2 (2025-02-21)
 
 ### Documentation
