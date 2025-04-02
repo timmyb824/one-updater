@@ -59,6 +59,7 @@ def init_config(config_path: str) -> None:
     # Default configuration
     default_config = {
         "verbose": False,
+        "logging": {"level": "INFO", "format": "%(message)s"},
         "package_managers": {
             "brew": {
                 "enabled": True,
@@ -67,11 +68,11 @@ def init_config(config_path: str) -> None:
                     "upgrade": ["brew", "upgrade"],
                 },
             },
-            "pip": {
+            "apt": {
                 "enabled": True,
                 "commands": {
-                    "update": ["pip", "install", "--upgrade", "pip"],
-                    "upgrade": [],
+                    "update": ["sudo", "apt-get", "update"],
+                    "upgrade": ["sudo", "apt", "upgrade", "-y"],
                 },
             },
         },

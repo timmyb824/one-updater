@@ -10,32 +10,22 @@ logging:
   format: "%(message)s"
 
 package_managers:
-  # Homebrew - The missing package manager for macOS
   brew:
     enabled: true
     commands:
       update: ["brew", "update"]
       upgrade: ["brew", "upgrade"]
 
-  # Pip - The Python package installer
-  pip:
+  apt:
     enabled: true
     commands:
-      update: [] # No separate update command needed
-      upgrade: [] # Upgrade handled internally
-    virtualenv: "/path/to/your/virtualenv"  # Optional: Path to virtualenv
-    pyenv_version: "3.11.0"  # Optional: pyenv version to use
-
-  # NPM - Node.js package manager
-  npm:
-    enabled: true
-    commands:
-      update: ["npm", "update", "-g"]
-      upgrade: ["npm", "upgrade", "-g"]
+      update: ["sudo", "apt-get", "update"]
+      upgrade: ["sudo", "apt-get", "upgrade", "-y"]
 # Add more package managers by copying their configuration from the documentation
 # Example:
-#   apt:
+#   NPM - Node.js package manager
+#   npm:
 #     enabled: true
 #     commands:
-#       update: ["sudo", "apt-get", "update"]
-#       upgrade: ["sudo", "apt-get", "upgrade", "-y"]
+#       update: ["npm", "update", "-g"]
+#       upgrade: ["npm", "upgrade", "-g"]
