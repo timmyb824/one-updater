@@ -50,8 +50,13 @@ def load_config(config_path: Optional[str] = None) -> dict:
 def init_config(config_path: str) -> None:
     """Initialize a new configuration file."""
     if os.path.exists(config_path):
-        console.print(f"[yellow]Config file already exists at {config_path}[/yellow]")
-        return
+        overwrite = console.input(
+            f"[yellow]Config file already exists at {config_path}. Overwrite? (y/N): [/yellow]"
+        ).lower()
+        if overwrite != "y":
+            console.print("[yellow]Keeping existing config file[/yellow]")
+            return
+        console.print(f"[yellow]Overwriting existing config at {config_path}[/yellow]")
 
     # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -59,6 +64,7 @@ def init_config(config_path: str) -> None:
     # Default configuration
     default_config = {
         "verbose": False,
+        "logging": {"level": "INFO", "format": "%(message)s"},
         "package_managers": {
             "brew": {
                 "enabled": True,
@@ -67,21 +73,29 @@ def init_config(config_path: str) -> None:
                     "upgrade": ["brew", "upgrade"],
                 },
             },
-            "pip": {
+            "apt": {
                 "enabled": True,
                 "commands": {
-                    "update": ["pip", "install", "--upgrade", "pip"],
-                    "upgrade": [],
+                    "update": ["sudo", "apt-get", "update"],
+                    "upgrade": ["sudo", "apt", "upgrade", "-y"],
                 },
             },
         },
     }
 
+    # Register the list representer
+    yaml.add_representer(list, represent_list)
+
     # Write configuration
     with open(config_path, "w", encoding="utf-8") as f:
-        yaml.dump(default_config, f, default_flow_style=False)
+        yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
 
     console.print(f"[green]Created new config file at {config_path}[/green]")
+
+
+def represent_list(dumper, data):
+    """Custom representer for lists to use flow style."""
+    return dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=True)
 
 
 def get_package_manager(name: str, config: dict) -> Optional[PackageManager]:
