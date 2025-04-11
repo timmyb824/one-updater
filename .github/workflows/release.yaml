@@ -72,9 +72,10 @@ jobs:
             artifacts/one-updater-linux/one-updater-linux
             artifacts/one-updater-darwin/one-updater-darwin
           body: |
-            **Note**: These executables are provided for convenience. The recommended installation method is via pip:
+            **Note**: These executables are provided for convenience. The recommended installation methods are:
             ```bash
             pip install one-updater
+            uv tool install one-updater
             ```
           draft: false
           prerelease: false

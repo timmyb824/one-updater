@@ -14,7 +14,7 @@ class GoManager(PackageManager):
     SPECIAL_CASES = {
         "staticcheck": "honnef.co/go/tools/cmd/staticcheck",
         "kube-linter": "golang.stackrox.io/kube-linter/cmd/kube-linter",
-        # Add more special cases here as needed
+        "yamlfmt": "github.com/google/yamlfmt/cmd/yamlfmt",
     }
 
     def __init__(self, config: dict):
