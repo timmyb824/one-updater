@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.1 (2025-04-11)
+
+### Chores
+
+- Add yamlfmt go package to the special case dict
+  ([`fbf49a9`](https://github.com/timmyb824/one-updater/commit/fbf49a9abc2cbdfbe00ac8d171968dd5b5b844a3))
+
+
 ## v0.8.0 (2025-04-02)
 
 ### Features
