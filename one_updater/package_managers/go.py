@@ -15,6 +15,7 @@ class GoManager(PackageManager):
         "staticcheck": "honnef.co/go/tools/cmd/staticcheck",
         "kube-linter": "golang.stackrox.io/kube-linter/cmd/kube-linter",
         "yamlfmt": "github.com/google/yamlfmt/cmd/yamlfmt",
+        "bunster": "github.com/yassinebenaid/bunster/cmd/bunster",
     }
 
     def __init__(self, config: dict):
