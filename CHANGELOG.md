@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.8.2 (2025-04-14)
+
+### Chores
+
+- Add bunster to go special cases
+  ([`6ef2d63`](https://github.com/timmyb824/one-updater/commit/6ef2d63f9c3aacf90d94f3d7c21ccd5519b5cf6d))
+
+
 ## v0.8.1 (2025-04-11)
 
 ### Chores
