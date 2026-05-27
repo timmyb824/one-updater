@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -8,6 +9,7 @@ from typing import Optional
 
 import yaml
 from rich.console import Console
+from rich.table import Table
 
 from one_updater.package_managers.base import PackageManager
 from one_updater.package_managers.registry import PackageManagerRegistry
@@ -213,6 +215,166 @@ def show_version():
         console.print("[red]Error: Could not determine version[/red]")
 
 
+def export_packages(
+    managers: Optional[list[str]],
+    output: Optional[str],
+    fmt: str,
+    verbose: bool,
+    skip: Optional[list[str]] = None,
+) -> None:
+    """Export installed packages grouped by package manager to YAML or JSON."""
+    supported = PackageManagerRegistry.EXPORT_SUPPORTED
+    targets = sorted([m for m in managers if m in supported] if managers else supported)
+    if skip:
+        targets = [m for m in targets if m not in skip]
+    for m in managers or []:
+        if m not in supported:
+            console.print(f"[yellow]! {m} is not export-supported, skipping[/yellow]")
+
+    result: dict[str, list[str]] = {}
+    for name in targets:
+        try:
+            pm = PackageManagerRegistry.get_manager(name, {"enabled": True})
+        except ValueError as e:
+            console.print(f"[yellow]! {e}, skipping[/yellow]")
+            continue
+
+        if not pm.is_available():
+            if verbose:
+                console.print(f"[yellow]! {name} not available, skipping[/yellow]")
+            continue
+
+        packages = pm.list_packages()
+        if packages is None:
+            console.print(f"[yellow]! {name} list not supported, skipping[/yellow]")
+            continue
+
+        if not packages:
+            console.print(f"[dim]- {name}: none found, skipping[/dim]")
+            continue
+        console.print(f"[green]\u2713 {name}[/green]: {len(packages)} package(s)")
+        result[name] = sorted(packages)
+
+    if not result:
+        console.print("[yellow]No packages found to export[/yellow]")
+        return
+
+    if fmt == "json":
+        text = json.dumps(result, indent=2)
+    else:
+        text = yaml.dump(result, default_flow_style=False, sort_keys=True)
+
+    if output:
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(text)
+        console.print(f"\n[bold green]Exported to {output}[/bold green]")
+    else:
+        console.print("\n")
+        console.print(text)
+
+
+def import_packages(
+    file_path: str,
+    managers: Optional[list[str]],
+    dry_run: bool,
+    verbose: bool,
+    skip: Optional[list[str]] = None,
+) -> None:
+    """Read an export file and install all packages not already present."""
+    if not os.path.exists(file_path):
+        error_console.print(f"[red]Error: File not found: {file_path}[/red]")
+        sys.exit(1)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".json":
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            error_console.print(f"[red]Error parsing JSON: {e}[/red]")
+            sys.exit(1)
+    else:
+        try:
+            data = yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            error_console.print(f"[red]Error parsing YAML: {e}[/red]")
+            sys.exit(1)
+
+    if not isinstance(data, dict):
+        error_console.print(
+            "[red]Error: export file must map manager names to package lists[/red]"
+        )
+        sys.exit(1)
+
+    supported = PackageManagerRegistry.EXPORT_SUPPORTED
+    targets = sorted(m for m in data if m in supported)
+    if managers:
+        targets = [m for m in targets if m in managers]
+    if skip:
+        targets = [m for m in targets if m not in skip]
+
+    table = Table(title="Import Results", show_header=True)
+    table.add_column("Manager", style="cyan")
+    table.add_column("Package", style="white")
+    table.add_column("Status")
+
+    summary: dict[str, dict[str, int]] = {}
+
+    for name in targets:
+        packages = data[name]
+        if not isinstance(packages, list):
+            console.print(f"[yellow]! {name}: expected list, skipping[/yellow]")
+            continue
+
+        try:
+            pm = PackageManagerRegistry.get_manager(name, {"enabled": True})
+        except ValueError as e:
+            console.print(f"[yellow]! {e}, skipping[/yellow]")
+            continue
+
+        if not pm.is_available():
+            console.print(f"[yellow]! {name} not available, skipping[/yellow]")
+            continue
+
+        summary[name] = {"installed": 0, "skipped": 0, "failed": 0}
+
+        for pkg in packages:
+            if pm.is_package_installed(pkg):
+                summary[name]["skipped"] += 1
+                if verbose:
+                    table.add_row(
+                        name,
+                        pkg,
+                        "[yellow]skipped (already installed)[/yellow]",
+                    )
+                continue
+
+            if dry_run:
+                table.add_row(name, pkg, "[blue]would install[/blue]")
+                continue
+
+            if pm.install_package(pkg):
+                summary[name]["installed"] += 1
+                table.add_row(name, pkg, "[green]installed[/green]")
+            else:
+                summary[name]["failed"] += 1
+                table.add_row(name, pkg, "[red]failed[/red]")
+
+    console.print(table)
+
+    if summary:
+        console.print("\n[bold]Summary:[/bold]")
+        for name, counts in sorted(summary.items()):
+            console.print(
+                f"  {name}: "
+                f"[green]{counts['installed']} installed[/green], "
+                f"[yellow]{counts['skipped']} skipped[/yellow], "
+                f"[red]{counts['failed']} failed[/red]"
+            )
+
+
 def main():
     """Main entry point for the CLI."""
     description = """
@@ -226,6 +388,8 @@ Examples:
   %(prog)s list-managers           List all configured package managers
   %(prog)s update -m brew pip      Update only brew and pip
   %(prog)s upgrade                 Upgrade all enabled package managers
+  %(prog)s export -o pkgs.yaml     Export installed packages to a file
+  %(prog)s import pkgs.yaml        Install packages from an export file
   %(prog)s -h                      Show this help message
 """
 
@@ -338,6 +502,69 @@ https://github.com/timmyb824/one-updater
         parents=[common_parser],
     )
 
+    export_help = """
+    Export all installed packages grouped by package manager.
+    Writes YAML (default) or JSON to a file or stdout.
+    Use -m to limit to specific managers.
+    """
+    export_parser = subparsers.add_parser(
+        "export",
+        help="export installed packages to a file",
+        description=export_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser, manager_parser],
+    )
+    export_parser.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        help="output file path (default: stdout)",
+    )
+    export_parser.add_argument(
+        "-f",
+        "--format",
+        choices=["yaml", "json"],
+        default="yaml",
+        help="output format (default: yaml)",
+    )
+    export_parser.add_argument(
+        "-s",
+        "--skip",
+        metavar="NAME",
+        action="append",
+        help="package manager(s) to skip (can be specified multiple times)",
+    )
+
+    import_help = """
+    Install packages from an export file.
+    Already-installed packages are skipped automatically.
+    Use -m to limit to specific managers from the file.
+    """
+    import_parser = subparsers.add_parser(
+        "import",
+        help="install packages from an export file",
+        description=import_help,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=[common_parser, manager_parser],
+    )
+    import_parser.add_argument(
+        "file",
+        metavar="FILE",
+        help="path to the export file",
+    )
+    import_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show what would be installed without doing it",
+    )
+    import_parser.add_argument(
+        "-s",
+        "--skip",
+        metavar="NAME",
+        action="append",
+        help="package manager(s) to skip (can be specified multiple times)",
+    )
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -356,7 +583,7 @@ https://github.com/timmyb824/one-updater
         logger.debug(f"Command line arguments: {args}")
 
         # Load config file if needed
-        if args.command != "init":
+        if args.command not in ("init", "export", "import"):
             config_path = os.path.abspath(
                 os.path.expanduser(args.config or get_default_config_path())
             )
@@ -382,6 +609,22 @@ https://github.com/timmyb824/one-updater
             update_managers(config, args.manager, args.verbose)
         elif args.command == "upgrade":
             upgrade_managers(config, args.manager, args.verbose)
+        elif args.command == "export":
+            export_packages(
+                args.manager,
+                args.output,
+                args.format,
+                args.verbose,
+                args.skip,
+            )
+        elif args.command == "import":
+            import_packages(
+                args.file,
+                args.manager,
+                args.dry_run,
+                args.verbose,
+                args.skip,
+            )
         else:
             parser.print_help()
             sys.exit(1)

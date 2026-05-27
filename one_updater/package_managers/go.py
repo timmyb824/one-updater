@@ -202,3 +202,81 @@ class GoManager(PackageManager):
             success = False
 
         return success
+
+    def list_packages(self) -> list[str] | None:
+        """Return Go module paths for all binaries installed in GOPATH/bin."""
+        if not self.is_available():
+            return None
+        try:
+            result = subprocess.run(
+                ["go", "env", "GOPATH"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            gopath = result.stdout.strip() or os.path.expanduser("~/go")
+        except subprocess.CalledProcessError:
+            return None
+
+        bin_dir = os.path.join(gopath, "bin")
+        if not os.path.isdir(bin_dir):
+            return []
+
+        binaries = [
+            b
+            for b in os.listdir(bin_dir)
+            if not b.startswith(".") and os.path.isfile(os.path.join(bin_dir, b))
+        ]
+
+        packages = []
+        for binary in binaries:
+            if binary in self.SPECIAL_CASES:
+                packages.append(self.SPECIAL_CASES[binary])
+                continue
+            try:
+                r = subprocess.run(
+                    ["go", "version", "-m", os.path.join(bin_dir, binary)],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                if module_path := next(
+                    (
+                        line.strip().split("\t")[1]
+                        for line in r.stdout.split("\n")
+                        if line.strip().startswith("mod\t")
+                    ),
+                    None,
+                ):
+                    packages.append(module_path)
+                else:
+                    packages.append(binary)
+            except subprocess.CalledProcessError:
+                packages.append(binary)
+        return packages
+
+    def install_package(self, name: str) -> bool:
+        """Install a Go package by module path using go install."""
+        if not self.is_available():
+            return False
+        return self.run_command(["go", "install", f"{name}@latest"])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a Go package is installed (binary present in GOPATH/bin)."""
+        if not self.is_available():
+            return False
+        try:
+            result = subprocess.run(
+                ["go", "env", "GOPATH"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            gopath = result.stdout.strip() or os.path.expanduser("~/go")
+        except subprocess.CalledProcessError:
+            return False
+        bin_dir = os.path.join(gopath, "bin")
+        binary = os.path.basename(name.rstrip("/"))
+        if binary.startswith("cmd/"):
+            binary = binary[4:]
+        return os.path.isfile(os.path.join(bin_dir, binary))

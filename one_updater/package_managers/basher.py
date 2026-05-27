@@ -1,12 +1,18 @@
 """basher package manager implementation."""
 
 import logging
+import os
 import subprocess
+from typing import Optional
 
 from .base import PackageManager
 
 
 class BasherManager(PackageManager):
+    """
+    Basher package manager implementation.
+    """
+
     def is_available(self) -> bool:
         return self.run_command(["which", "basher"])
 
@@ -39,3 +45,32 @@ class BasherManager(PackageManager):
             logging.error("Failed to get outdated basher packages")
             success = False
         return success
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all basher-installed packages as user/package strings."""
+        if not self.is_available():
+            return None
+        cellar = os.path.expanduser("~/.basher/cellar/packages")
+        if not os.path.isdir(cellar):
+            return []
+        return [
+            f"{user}/{pkg}"
+            for user in os.listdir(cellar)
+            if os.path.isdir(user_dir := os.path.join(cellar, user))
+            for pkg in os.listdir(user_dir)
+            if os.path.isdir(os.path.join(user_dir, pkg))
+        ]
+
+    def install_package(self, name: str) -> bool:
+        """Install a basher package by user/package identifier."""
+        if not self.is_available():
+            return False
+        return self.run_command(["basher", "install", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a basher package is installed."""
+        if "/" not in name:
+            return False
+        user, pkg = name.split("/", 1)
+        path = os.path.expanduser(f"~/.basher/cellar/packages/{user}/{pkg}")
+        return os.path.isdir(path)

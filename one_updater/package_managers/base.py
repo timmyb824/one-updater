@@ -76,6 +76,9 @@ class PackageManager(ABC):
                 self._status.start()
 
             return False
+        except FileNotFoundError:
+            logging.error(f"Command not found: {command[0]}")
+            return False
 
     def run_command_with_output(
         self, command: list[str]
@@ -91,6 +94,9 @@ class PackageManager(ABC):
             return True, result.stdout, result.stderr
         except subprocess.CalledProcessError as e:
             return False, e.stdout, e.stderr
+        except FileNotFoundError:
+            logging.error(f"Command not found: {command[0]}")
+            return False, "", ""
 
     def _check_available(self, operation: str) -> bool:
         """Check if package manager is available and log if not.
@@ -121,3 +127,18 @@ class PackageManager(ABC):
     def upgrade(self) -> bool:
         """Upgrade installed packages."""
         pass
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return a list of installed package names, or None if unsupported."""
+        return None
+
+    def install_package(self, _name: str) -> bool:
+        """Install a single package by name. Returns False if unsupported."""
+        return False
+
+    def is_package_installed(self, _name: str) -> bool:
+        """Check whether a package is already installed.
+
+        Returns False if unsupported.
+        """
+        return False

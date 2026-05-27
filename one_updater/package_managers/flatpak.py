@@ -1,6 +1,7 @@
 """Flatpak package manager implementation."""
 
 import logging
+from typing import Optional
 
 from .base import PackageManager
 
@@ -70,3 +71,25 @@ class FlatpakManager(PackageManager):
             return False
 
         return self.run_command(self.commands["upgrade"])
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all installed Flatpak application IDs."""
+        if not self.is_available():
+            return None
+        ok, stdout, _ = self.run_command_with_output(
+            ["flatpak", "list", "--app", "--columns=application"]
+        )
+        if not ok or not stdout:
+            return []
+        return [line.strip() for line in stdout.splitlines() if line.strip()]
+
+    def install_package(self, name: str) -> bool:
+        """Install a Flatpak application by ID."""
+        if not self.is_available():
+            return False
+        return self.run_command(["flatpak", "install", "-y", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a Flatpak application is installed."""
+        packages = self.list_packages()
+        return packages is not None and name in packages

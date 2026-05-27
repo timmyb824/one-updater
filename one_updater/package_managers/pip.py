@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 from .base import PackageManager
 
@@ -267,3 +268,23 @@ class PipManager(PackageManager):
             if self.verbose and e.stderr:
                 logging.error(f"Error output: {e.stderr}")
             return False
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all pip-installed packages using the system pip."""
+        ok, stdout, _ = self.run_command_with_output(["pip", "list", "--format=json"])
+        if not ok or not stdout:
+            return None
+        try:
+            packages = json.loads(stdout)
+            return [pkg["name"] for pkg in packages]
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def install_package(self, name: str) -> bool:
+        """Install a pip package by name."""
+        return self.run_command(["pip", "install", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a pip package is installed."""
+        ok, _, _ = self.run_command_with_output(["pip", "show", name])
+        return ok
