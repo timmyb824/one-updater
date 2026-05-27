@@ -1,11 +1,11 @@
 repos:
 -   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
-    rev: v0.8.0
+    rev: v0.9.0
     hooks:
     -   id: pre-commit-update
 
 -   repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.37.0
+    rev: v1.43.0
     hooks:
     -   id: sourcery
         # * review only changed lines:
@@ -13,26 +13,26 @@ repos:
         args: [--diff=git diff HEAD, --no-summary, one_updater/]
 
 -   repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.5.1
     hooks:
     -   id: black
         language_version: python3
 
 -   repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 8.0.1
     hooks:
     -   id: isort
         args: ["--profile", "black"]
 
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.7.19
+    rev: 0.11.16
     hooks:
     -   id: uv-lock
     -   id: uv-export
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
         args: [--unsafe]
@@ -54,13 +54,13 @@ repos:
     -   id: ripsecrets
 
 -   repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.89.2
+    rev: v3.95.3
     hooks:
     -   id: trufflehog
         name: TruffleHog
         description: Detect secrets in your data.
-        entry: bash -c 'trufflehog git file://. --since-commit HEAD --only-verified
-          --fail'
+        entry: bash -c 'trufflehog git file://. --since-commit HEAD
+          --only-verified --fail'
         language: system
         stages: ["pre-commit"]
 

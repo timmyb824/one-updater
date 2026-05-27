@@ -2,6 +2,7 @@
 
 import logging
 import subprocess
+from typing import Optional
 
 from .base import PackageManager
 
@@ -63,3 +64,23 @@ class CargoManager(PackageManager):
             success = False
 
         return success
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all cargo-installed package names."""
+        if not self.is_available():
+            return None
+        ok, stdout, _ = self.run_command_with_output(["cargo", "install", "--list"])
+        if not ok or not stdout:
+            return []
+        return [line.split()[0] for line in stdout.splitlines() if ":" in line]
+
+    def install_package(self, name: str) -> bool:
+        """Install a cargo package by name."""
+        if not self.is_available():
+            return False
+        return self.run_command(["cargo", "install", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a cargo package is installed."""
+        packages = self.list_packages()
+        return packages is not None and name in packages

@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+from typing import Optional
 
 from .base import PackageManager
 
@@ -48,3 +49,24 @@ class HomebrewManager(PackageManager):
             self._status.start()
 
         return success
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all installed Homebrew formulae and casks."""
+        if not self.is_available():
+            return None
+        ok, stdout, _ = self.run_command_with_output(["brew", "list", "--formula"])
+        formulae = stdout.splitlines() if ok and stdout else []
+        ok, stdout, _ = self.run_command_with_output(["brew", "list", "--cask"])
+        casks = stdout.splitlines() if ok and stdout else []
+        return formulae + casks
+
+    def install_package(self, name: str) -> bool:
+        """Install a Homebrew formula or cask by name."""
+        if not self.is_available():
+            return False
+        return self.run_command(["brew", "install", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a Homebrew package is installed."""
+        ok, _, _ = self.run_command_with_output(["brew", "list", name])
+        return ok

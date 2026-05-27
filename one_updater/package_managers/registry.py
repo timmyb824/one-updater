@@ -49,6 +49,29 @@ class PackageManagerRegistry:
         "uv": UvManager,
     }
 
+    EXPORT_SUPPORTED: frozenset[str] = frozenset(
+        {
+            "apt",
+            "basher",
+            "brew",
+            "cargo",
+            "dnf",
+            "flatpak",
+            "gem",
+            "gh-cli",
+            "go",
+            "krew",
+            "micro",
+            "npm",
+            "pacman",
+            "pip",
+            "pipx",
+            "snap",
+            "uv",
+            "vagrant",
+        }
+    )
+
     @classmethod
     def get_manager(cls, name: str, config: dict) -> PackageManager:
         """Get a package manager instance by name."""

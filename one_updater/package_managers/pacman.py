@@ -1,7 +1,7 @@
 """Pacman package manager implementation."""
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from .base import PackageManager
 
@@ -72,3 +72,23 @@ class PacmanManager(PackageManager):
             return False
 
         return self.run_command(self.commands["upgrade"])
+
+    def list_packages(self) -> Optional[list[str]]:
+        """Return all explicitly installed Pacman package names."""
+        if not self.is_available():
+            return None
+        ok, stdout, _ = self.run_command_with_output(["pacman", "-Qqe"])
+        if not ok or not stdout:
+            return []
+        return [line.strip() for line in stdout.splitlines() if line.strip()]
+
+    def install_package(self, name: str) -> bool:
+        """Install a Pacman package by name."""
+        if not self.is_available():
+            return False
+        return self.run_command(["sudo", "pacman", "-S", "--noconfirm", name])
+
+    def is_package_installed(self, name: str) -> bool:
+        """Check whether a Pacman package is installed."""
+        ok, _, _ = self.run_command_with_output(["pacman", "-Q", name])
+        return ok

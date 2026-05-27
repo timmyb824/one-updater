@@ -16,6 +16,8 @@ dev = [
   "isort",
   "pyinstaller",
   "pyyaml",
+  "ansible",
+  "passlib",
 ]
 
 [tool.uv]
