@@ -14,6 +14,11 @@ from rich.table import Table
 from one_updater.package_managers.base import PackageManager
 from one_updater.package_managers.registry import PackageManagerRegistry
 
+
+class PackageImportError(Exception):
+    """Raised by import_packages for fatal input/parse errors."""
+
+
 console = Console()
 error_console = Console(stderr=True)
 logger = logging.getLogger(__name__)
@@ -283,7 +288,7 @@ def import_packages(
     """Read an export file and install all packages not already present."""
     if not os.path.exists(file_path):
         error_console.print(f"[red]Error: File not found: {file_path}[/red]")
-        sys.exit(1)
+        raise PackageImportError(f"File not found: {file_path}")
 
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -294,26 +299,36 @@ def import_packages(
             data = json.loads(content)
         except json.JSONDecodeError as e:
             error_console.print(f"[red]Error parsing JSON: {e}[/red]")
-            sys.exit(1)
+            raise PackageImportError(f"Invalid JSON: {e}") from e
     else:
         try:
             data = yaml.safe_load(content)
         except yaml.YAMLError as e:
             error_console.print(f"[red]Error parsing YAML: {e}[/red]")
-            sys.exit(1)
+            raise PackageImportError(f"Invalid YAML: {e}") from e
 
     if not isinstance(data, dict):
         error_console.print(
             "[red]Error: export file must map manager names to package lists[/red]"
         )
-        sys.exit(1)
+        raise PackageImportError("export file must map manager names to package lists")
 
     supported = PackageManagerRegistry.EXPORT_SUPPORTED
+    for m in sorted(data):
+        if m not in supported:
+            console.print(f"[yellow]! {m} not in EXPORT_SUPPORTED, ignoring[/yellow]")
     targets = sorted(m for m in data if m in supported)
     if managers:
         targets = [m for m in targets if m in managers]
     if skip:
         targets = [m for m in targets if m not in skip]
+
+    if not targets:
+        console.print(
+            "[yellow]No packages matched the selected managers/filters;"
+            " nothing to import.[/yellow]"
+        )
+        return
 
     table = Table(title="Import Results", show_header=True)
     table.add_column("Manager", style="cyan")
@@ -327,6 +342,19 @@ def import_packages(
         if not isinstance(packages, list):
             console.print(f"[yellow]! {name}: expected list, skipping[/yellow]")
             continue
+
+        invalid = [pkg for pkg in packages if not isinstance(pkg, str)]
+        if invalid:
+            error_console.print(
+                f"[red]Error: package list for '{name}' contains non-string "
+                f"entries: {[type(p).__name__ for p in invalid]}[/red]"
+            )
+            console.print(
+                "[yellow]Hint: ensure all package names are plain strings "
+                "in the export file.[/yellow]"
+            )
+            continue
+        packages = [pkg for pkg in packages if isinstance(pkg, str)]
 
         try:
             pm = PackageManagerRegistry.get_manager(name, {"enabled": True})
@@ -362,17 +390,22 @@ def import_packages(
                 summary[name]["failed"] += 1
                 table.add_row(name, pkg, "[red]failed[/red]")
 
-    console.print(table)
+    if not summary:
+        console.print(
+            "[yellow]Nothing was imported (all packages already installed"
+            " or no valid entries).[/yellow]"
+        )
+        return
 
-    if summary:
-        console.print("\n[bold]Summary:[/bold]")
-        for name, counts in sorted(summary.items()):
-            console.print(
-                f"  {name}: "
-                f"[green]{counts['installed']} installed[/green], "
-                f"[yellow]{counts['skipped']} skipped[/yellow], "
-                f"[red]{counts['failed']} failed[/red]"
-            )
+    console.print(table)
+    console.print("\n[bold]Summary:[/bold]")
+    for name, counts in sorted(summary.items()):
+        console.print(
+            f"  {name}: "
+            f"[green]{counts['installed']} installed[/green], "
+            f"[yellow]{counts['skipped']} skipped[/yellow], "
+            f"[red]{counts['failed']} failed[/red]"
+        )
 
 
 def main():
@@ -629,6 +662,8 @@ https://github.com/timmyb824/one-updater
             parser.print_help()
             sys.exit(1)
 
+    except PackageImportError:
+        sys.exit(1)
     except Exception as e:
         error_console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)

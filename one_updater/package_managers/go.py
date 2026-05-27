@@ -276,7 +276,9 @@ class GoManager(PackageManager):
         except subprocess.CalledProcessError:
             return False
         bin_dir = os.path.join(gopath, "bin")
-        binary = os.path.basename(name.rstrip("/"))
-        if binary.startswith("cmd/"):
-            binary = binary[4:]
+        stripped = name.rstrip("/")
+        # Handle paths like example.com/repo/cmd/tool — strip /cmd/<bin> pattern
+        if "/cmd/" in stripped:
+            stripped = stripped.split("/cmd/")[-1]
+        binary = os.path.basename(stripped)
         return os.path.isfile(os.path.join(bin_dir, binary))

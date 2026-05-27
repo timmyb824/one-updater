@@ -6,25 +6,31 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from one_updater.cli import export_packages, import_packages
+from one_updater.cli import PackageImportError, export_packages, import_packages
 from one_updater.package_managers.brew import HomebrewManager
 from one_updater.package_managers.cargo import CargoManager
 from one_updater.package_managers.pipx import PipxManager
 from one_updater.package_managers.registry import PackageManagerRegistry
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_pm(available: bool, packages: list[str] | None) -> MagicMock:
+def _make_pm(
+    available: bool,
+    packages: list[str] | None,
+    failed_packages: set[str] | None = None,
+) -> MagicMock:
     """Return a mock PackageManager with configured behaviour."""
     pm = MagicMock()
     pm.is_available.return_value = available
     pm.list_packages.return_value = packages
     pm.is_package_installed.side_effect = lambda name: name in (packages or [])
-    pm.install_package.return_value = True
+    if failed_packages:
+        pm.install_package.side_effect = lambda name: name not in failed_packages
+    else:
+        pm.install_package.return_value = True
     return pm
 
 
@@ -113,6 +119,65 @@ class TestPipxMethods:
         mgr = PipxManager({})
         with patch.object(mgr, "list_packages", return_value=None):
             assert mgr.is_package_installed("black") is False
+
+
+class TestHomebrewNegativePaths:
+    """Negative-path tests for HomebrewManager."""
+
+    def test_install_package_unavailable_returns_false(self) -> None:
+        """install_package returns False and skips run_command when unavailable."""
+        mgr = HomebrewManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=False),
+            patch.object(mgr, "run_command") as mock_run,
+        ):
+            result = mgr.install_package("ripgrep")
+        assert result is False
+        mock_run.assert_not_called()
+
+
+class TestPipxNegativePaths:
+    """Negative-path tests for PipxManager."""
+
+    def test_list_packages_command_failure_returns_empty(self) -> None:
+        """list_packages returns [] when run_command_with_output fails."""
+        mgr = PipxManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(False, "", "")),
+        ):
+            assert mgr.list_packages() == []
+
+    def test_list_packages_empty_stdout_returns_empty(self) -> None:
+        """list_packages returns [] when stdout is empty."""
+        mgr = PipxManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(True, "", "")),
+        ):
+            assert mgr.list_packages() == []
+
+
+class TestCargoNegativePaths:
+    """Negative-path tests for CargoManager."""
+
+    def test_list_packages_command_failure_returns_empty(self) -> None:
+        """list_packages returns [] when run_command_with_output fails."""
+        mgr = CargoManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(False, "", "")),
+        ):
+            assert mgr.list_packages() == []
+
+    def test_list_packages_empty_stdout_returns_empty(self) -> None:
+        """list_packages returns [] when stdout is empty."""
+        mgr = CargoManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(True, "", "")),
+        ):
+            assert mgr.list_packages() == []
 
 
 class TestCargoMethods:
@@ -300,15 +365,110 @@ class TestImportPackages:
 
         mock_pm.install_package.assert_called_once_with("black")
 
-    def test_import_file_not_found_exits(self, tmp_path) -> None:
-        """import_packages calls sys.exit when the file does not exist."""
-        with pytest.raises(SystemExit):
+    def test_import_file_not_found_raises(self, tmp_path) -> None:
+        """import_packages raises PackageImportError when the file does not exist."""
+        with pytest.raises(PackageImportError):
             import_packages(
                 file_path=str(tmp_path / "nonexistent.yaml"),
                 managers=None,
                 dry_run=False,
                 verbose=False,
             )
+
+    def test_import_invalid_json_raises(self, tmp_path) -> None:
+        """import_packages raises PackageImportError on malformed JSON."""
+        path = tmp_path / "packages.json"
+        path.write_text("{not valid json")
+        with pytest.raises(PackageImportError):
+            import_packages(
+                file_path=str(path), managers=None, dry_run=False, verbose=False
+            )
+
+    def test_import_non_dict_top_level_raises(self, tmp_path) -> None:
+        """import_packages raises PackageImportError when top-level is not a dict."""
+        path = tmp_path / "packages.yaml"
+        path.write_text("- pkg1\n- pkg2\n")
+        with pytest.raises(PackageImportError):
+            import_packages(
+                file_path=str(path), managers=None, dry_run=False, verbose=False
+            )
+
+    def test_import_non_list_manager_value_warns(self, tmp_path, capsys) -> None:
+        """import_packages warns and skips managers whose value is not a list."""
+        data = {"brew": "git"}
+        file_path = self._write_export(tmp_path, data, fmt="json")
+        mock_pm = _make_pm(available=True, packages=[])
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            import_packages(
+                file_path=file_path, managers=None, dry_run=False, verbose=False
+            )
+        captured = capsys.readouterr()
+        assert "expected list" in captured.out
+        mock_pm.install_package.assert_not_called()
+
+    def test_import_unsupported_managers_warn(self, tmp_path, capsys) -> None:
+        """import_packages warns about managers not in EXPORT_SUPPORTED."""
+        data = {"brew": ["git"], "tldr": ["foo"]}
+        file_path = self._write_export(tmp_path, data, fmt="json")
+        mock_pm = _make_pm(available=True, packages=[])
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            import_packages(
+                file_path=file_path, managers=None, dry_run=False, verbose=False
+            )
+        captured = capsys.readouterr()
+        assert "tldr" in captured.out
+        assert "EXPORT_SUPPORTED" in captured.out
+
+    def test_import_install_failure_counted(self, tmp_path, capsys) -> None:
+        """import_packages counts and displays failed installs."""
+        data = {"cargo": ["bat", "fd"]}
+        file_path = self._write_export(tmp_path, data)
+        mock_pm = _make_pm(available=True, packages=[], failed_packages={"fd"})
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            import_packages(
+                file_path=file_path, managers=None, dry_run=False, verbose=False
+            )
+        captured = capsys.readouterr()
+        assert "failed" in captured.out
+        assert "installed" in captured.out
+
+    def test_import_verbose_dry_run_shows_table_entries(self, tmp_path, capsys) -> None:
+        """verbose+dry_run prints skipped and would-install rows in the table."""
+        data = {"brew": ["git", "ripgrep"]}
+        file_path = self._write_export(tmp_path, data)
+        mock_pm = _make_pm(available=True, packages=["git"])
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            import_packages(
+                file_path=file_path,
+                managers=None,
+                dry_run=True,
+                verbose=True,
+            )
+        captured = capsys.readouterr()
+        assert "skipped (already installed)" in captured.out
+        assert "would install" in captured.out
+
+    def test_import_skip_excludes_managers(self, tmp_path) -> None:
+        """import_packages honours the skip list."""
+        data = {"brew": ["git"], "pipx": ["black"]}
+        file_path = self._write_export(tmp_path, data)
+        brew_pm = _make_pm(available=True, packages=[])
+        pipx_pm = _make_pm(available=True, packages=[])
+
+        def _get(name: str, _cfg: dict) -> MagicMock:
+            """Return PM mock by name."""
+            return brew_pm if name == "brew" else pipx_pm
+
+        with patch.object(PackageManagerRegistry, "get_manager", side_effect=_get):
+            import_packages(
+                file_path=file_path,
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                skip=["pipx"],
+            )
+        brew_pm.install_package.assert_called_once_with("git")
+        pipx_pm.install_package.assert_not_called()
 
     def test_import_manager_filter(self, tmp_path) -> None:
         """import_packages only processes managers listed in managers arg."""

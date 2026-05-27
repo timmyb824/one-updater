@@ -273,12 +273,12 @@ class PipManager(PackageManager):
         """Return all pip-installed packages using the system pip."""
         ok, stdout, _ = self.run_command_with_output(["pip", "list", "--format=json"])
         if not ok or not stdout:
-            return None
+            return []
         try:
             packages = json.loads(stdout)
             return [pkg["name"] for pkg in packages]
         except (json.JSONDecodeError, KeyError):
-            return None
+            return []
 
     def install_package(self, name: str) -> bool:
         """Install a pip package by name."""
