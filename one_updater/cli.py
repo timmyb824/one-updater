@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import contextlib
 import json
 import logging
 import os
@@ -220,6 +221,34 @@ def show_version():
         console.print("[red]Error: Could not determine version[/red]")
 
 
+def scan_unmanaged_binaries(
+    managed_names: set[str],
+    scan_dirs: Optional[list[str]] = None,
+) -> list[str]:
+    """Scan directories for executables not managed by any known package manager.
+
+    Returns a sorted list of binary names found in *scan_dirs* that are
+    executable files (or symlinks to them) and whose names are not present
+    in *managed_names*.
+    """
+    if scan_dirs is None:
+        scan_dirs = ["/usr/local/bin", os.path.expanduser("~/.local/bin")]
+
+    found: set[str] = set()
+    for directory in scan_dirs:
+        if not os.path.isdir(directory):
+            continue
+        with contextlib.suppress(OSError):
+            for entry in os.scandir(directory):
+                if (
+                    not entry.is_dir(follow_symlinks=True)
+                    and os.access(entry.path, os.X_OK)
+                    and entry.name not in managed_names
+                ):
+                    found.add(entry.name)
+    return sorted(found)
+
+
 def export_packages(
     managers: Optional[list[str]],
     output: Optional[str],
@@ -227,6 +256,7 @@ def export_packages(
     verbose: bool,
     skip: Optional[list[str]] = None,
 ) -> None:
+    # sourcery skip: low-code-quality
     """Export installed packages grouped by package manager to YAML or JSON."""
     supported = PackageManagerRegistry.EXPORT_SUPPORTED
     targets = sorted([m for m in managers if m in supported] if managers else supported)
@@ -262,20 +292,40 @@ def export_packages(
 
     if not result:
         console.print("[yellow]No packages found to export[/yellow]")
-        return
-
-    if fmt == "json":
-        text = json.dumps(result, indent=2)
     else:
-        text = yaml.dump(result, default_flow_style=False, sort_keys=True)
+        if fmt == "json":
+            text = json.dumps(result, indent=2)
+        else:
+            text = yaml.dump(result, default_flow_style=False, sort_keys=True)
 
-    if output:
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(text)
-        console.print(f"\n[bold green]Exported to {output}[/bold green]")
-    else:
-        console.print("\n")
-        console.print(text)
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(text)
+            console.print(f"\n[bold green]Exported to {output}[/bold green]")
+        else:
+            console.print("\n")
+            console.print(text)
+
+    managed_names: set[str] = set()
+    for pkgs in result.values():
+        managed_names.update(pkgs)
+    targets_set = set(targets)
+    for pm_name in PackageManagerRegistry.EXPORT_SUPPORTED:
+        if pm_name in targets_set:
+            continue
+        with contextlib.suppress(Exception):
+            extra_pm = PackageManagerRegistry.get_manager(pm_name, {"enabled": True})
+            if extra_pm.is_available():
+                if extra_pkgs := extra_pm.list_packages():
+                    managed_names.update(extra_pkgs)
+    if unmanaged := scan_unmanaged_binaries(managed_names):
+        console.print("\n[bold yellow]Other Tools Not Importable:[/bold yellow]")
+        console.print(
+            "[dim](binaries in /usr/local/bin and ~/.local/bin"
+            " not managed by any known package manager)[/dim]"
+        )
+        for tool in unmanaged:
+            console.print(f"  \u2022 {tool}")
 
 
 def import_packages(
@@ -285,6 +335,7 @@ def import_packages(
     verbose: bool,
     skip: Optional[list[str]] = None,
 ) -> None:
+    # sourcery skip: low-code-quality
     """Read an export file and install all packages not already present."""
     if not os.path.exists(file_path):
         error_console.print(f"[red]Error: File not found: {file_path}[/red]")
@@ -343,8 +394,7 @@ def import_packages(
             console.print(f"[yellow]! {name}: expected list, skipping[/yellow]")
             continue
 
-        invalid = [pkg for pkg in packages if not isinstance(pkg, str)]
-        if invalid:
+        if invalid := [pkg for pkg in packages if not isinstance(pkg, str)]:
             error_console.print(
                 f"[red]Error: package list for '{name}' contains non-string "
                 f"entries: {[type(p).__name__ for p in invalid]}[/red]"
