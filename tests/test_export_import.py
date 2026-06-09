@@ -6,7 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
-from one_updater.cli import PackageImportError, export_packages, import_packages
+from one_updater.cli import (
+    PackageImportError,
+    export_packages,
+    import_packages,
+    scan_unmanaged_binaries,
+)
 from one_updater.package_managers.brew import HomebrewManager
 from one_updater.package_managers.cargo import CargoManager
 from one_updater.package_managers.pipx import PipxManager
@@ -277,6 +282,147 @@ class TestExportPackages:
         with open(out_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         assert data == {"pipx": ["black", "ruff"]}
+
+
+# ---------------------------------------------------------------------------
+# scan_unmanaged_binaries
+# ---------------------------------------------------------------------------
+
+
+class TestScanUnmanagedBinaries:
+    """Unit tests for the scan_unmanaged_binaries helper."""
+
+    def test_nonexistent_dir_returns_empty(self) -> None:
+        """Returns an empty list when the scan directory does not exist."""
+        result = scan_unmanaged_binaries(
+            set(), scan_dirs=["/nonexistent/__test_path__"]
+        )
+        assert result == []
+
+    def test_executable_file_included(self, tmp_path) -> None:
+        """An executable file not in managed_names appears in the result."""
+        (tmp_path / "mytool").write_text("#!/bin/sh")
+        (tmp_path / "mytool").chmod(0o755)
+        result = scan_unmanaged_binaries(set(), scan_dirs=[str(tmp_path)])
+        assert "mytool" in result
+
+    def test_non_executable_file_excluded(self, tmp_path) -> None:
+        """A non-executable regular file is not included."""
+        (tmp_path / "readme.txt").write_text("docs")
+        (tmp_path / "readme.txt").chmod(0o644)
+        result = scan_unmanaged_binaries(set(), scan_dirs=[str(tmp_path)])
+        assert "readme.txt" not in result
+
+    def test_directory_entries_excluded(self, tmp_path) -> None:
+        """Subdirectories are not included even if they are executable."""
+        subdir = tmp_path / "subdir"
+        subdir.mkdir(mode=0o755)
+        result = scan_unmanaged_binaries(set(), scan_dirs=[str(tmp_path)])
+        assert "subdir" not in result
+
+    def test_managed_name_filtered_out(self, tmp_path) -> None:
+        """Binaries whose names are in managed_names are excluded."""
+        for name in ("gah", "neomd", "git"):
+            exe = tmp_path / name
+            exe.write_text("#!/bin/sh")
+            exe.chmod(0o755)
+        result = scan_unmanaged_binaries({"git"}, scan_dirs=[str(tmp_path)])
+        assert "git" not in result
+        assert "gah" in result
+        assert "neomd" in result
+
+    def test_results_are_sorted(self, tmp_path) -> None:
+        """Results are returned in sorted alphabetical order."""
+        for name in ("zzz", "aaa", "mmm"):
+            exe = tmp_path / name
+            exe.write_text("#!/bin/sh")
+            exe.chmod(0o755)
+        result = scan_unmanaged_binaries(set(), scan_dirs=[str(tmp_path)])
+        assert result == sorted(result)
+
+    def test_multiple_dirs_combined(self, tmp_path) -> None:
+        """Binaries from multiple scan directories are merged and deduplicated."""
+        dir_a = tmp_path / "a"
+        dir_b = tmp_path / "b"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        for name, d in (("tool1", dir_a), ("tool2", dir_b), ("tool1", dir_b)):
+            exe = d / name
+            exe.write_text("#!/bin/sh")
+            exe.chmod(0o755)
+        result = scan_unmanaged_binaries(set(), scan_dirs=[str(dir_a), str(dir_b)])
+        assert result == ["tool1", "tool2"]
+
+
+# ---------------------------------------------------------------------------
+# export_packages — unmanaged binary section
+# ---------------------------------------------------------------------------
+
+
+class TestExportPackagesUnmanagedBinaries:
+    """Integration tests for the Other Tools Not Importable console section."""
+
+    def test_unmanaged_tools_printed_to_console(self, capsys) -> None:
+        """export_packages prints the section when unmanaged binaries are found."""
+        mock_pm = _make_pm(available=True, packages=["git"])
+        with (
+            patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
+            patch(
+                "one_updater.cli.scan_unmanaged_binaries", return_value=["gah", "neomd"]
+            ),
+        ):
+            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+        captured = capsys.readouterr()
+        assert "Other Tools Not Importable" in captured.out
+        assert "gah" in captured.out
+        assert "neomd" in captured.out
+
+    def test_no_section_when_no_unmanaged_tools(self, capsys) -> None:
+        """export_packages omits the section entirely when scan returns empty."""
+        mock_pm = _make_pm(available=True, packages=["git"])
+        with (
+            patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
+            patch("one_updater.cli.scan_unmanaged_binaries", return_value=[]),
+        ):
+            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+        captured = capsys.readouterr()
+        assert "Other Tools Not Importable" not in captured.out
+
+    def test_managed_names_passed_to_scan(self, capsys) -> None:
+        """Package names from all available PMs are forwarded to
+        scan_unmanaged_binaries."""
+        mock_pm = _make_pm(available=True, packages=["git", "vim"])
+        captured_args: dict = {}
+
+        def _capture_scan(managed_names: set, scan_dirs=None) -> list:
+            """Record the managed_names argument and return an empty list."""
+            captured_args["managed_names"] = set(managed_names)
+            return []
+
+        with (
+            patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
+            patch("one_updater.cli.scan_unmanaged_binaries", side_effect=_capture_scan),
+        ):
+            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+        assert "git" in captured_args["managed_names"]
+        assert "vim" in captured_args["managed_names"]
+
+    def test_unmanaged_section_shown_even_when_no_packages_exported(
+        self, capsys
+    ) -> None:
+        """The binary scan runs even when result is empty (no packages exported)."""
+        mock_pm = _make_pm(available=False, packages=None)
+        with (
+            patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
+            patch(
+                "one_updater.cli.scan_unmanaged_binaries", return_value=["manualtool"]
+            ),
+        ):
+            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+        captured = capsys.readouterr()
+        assert "No packages found to export" in captured.out
+        assert "Other Tools Not Importable" in captured.out
+        assert "manualtool" in captured.out
 
 
 # ---------------------------------------------------------------------------
