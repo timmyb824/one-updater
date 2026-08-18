@@ -14,6 +14,12 @@ package_managers:
       update: ["sudo", "apt-get", "update"]
       upgrade: ["sudo", "apt-get", "upgrade", "-y"]
 
+  bin:
+    enabled: true
+    commands:
+      update: ["bin", "update"]
+      upgrade: ["bin", "update"]
+
   basher:
     enabled: true
     commands:

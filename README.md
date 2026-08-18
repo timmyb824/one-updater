@@ -28,6 +28,7 @@ A flexible package manager updater that helps you keep all your development tool
 - tldr pages
 - go packages
 - apt
+- bin (https://github.com/marcosnils/bin)
 - More coming soon!
 
 ## Installation

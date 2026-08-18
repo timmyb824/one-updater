@@ -1,6 +1,7 @@
 from .apt import AptManager
 from .base import PackageManager
 from .basher import BasherManager
+from .bin import BinManager
 from .brew import HomebrewManager
 from .cargo import CargoManager
 from .gem import GemManager
@@ -20,6 +21,7 @@ __all__ = [
     "PackageManager",
     "AptManager",
     "BasherManager",
+    "BinManager",
     "HomebrewManager",
     "CargoManager",
     "GemManager",
