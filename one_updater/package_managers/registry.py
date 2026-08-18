@@ -3,6 +3,7 @@
 from .apt import AptManager
 from .base import PackageManager
 from .basher import BasherManager
+from .bin import BinManager
 from .brew import HomebrewManager
 from .cargo import CargoManager
 from .dnf import DnfManager
@@ -29,6 +30,7 @@ class PackageManagerRegistry:
     _managers: dict[str, type[PackageManager]] = {
         "apt": AptManager,
         "basher": BasherManager,
+        "bin": BinManager,
         "brew": HomebrewManager,
         "cargo": CargoManager,
         "gem": GemManager,
