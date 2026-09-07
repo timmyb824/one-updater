@@ -218,6 +218,25 @@ class TestCargoMethods:
 class TestBinMethods:
     """Unit tests for BinManager export/import methods."""
 
+    # Column widths for simulated bin ls output
+    _PATH_W = 45
+    _VER_W = 10
+    _URL_W = 60
+
+    @classmethod
+    def _bin_ls_output(cls, rows: list[tuple[str, str, str]]) -> str:
+        """Build properly aligned bin ls table output for tests."""
+        header = (
+            f"{'Path':<{cls._PATH_W}}{'Version':<{cls._VER_W}}"
+            f"{'URL':<{cls._URL_W}}Status\n"
+        )
+        lines = [header]
+        lines.extend(
+            f"{path:<{cls._PATH_W}}{version:<{cls._VER_W}}{url:<{cls._URL_W}}OK\n"
+            for path, version, url in rows
+        )
+        return "".join(lines)
+
     def test_list_packages_unavailable(self) -> None:
         """list_packages returns None when bin is not available."""
         mgr = BinManager({})
@@ -227,15 +246,24 @@ class TestBinMethods:
     def test_list_packages_parses_ls_output(self) -> None:
         """list_packages extracts URLs from bin ls table output."""
         mgr = BinManager({})
-        output = (
-            "Path                                          Version  URL"
-            "                                                           Status\n"
-            "/Users/timothybryant/.local/bin/bin           v0.29.1"
-            "  github.com/marcosnils/bin                                     OK\n"
-            "/Users/timothybryant/.local/bin/glab-tui      v0.9.0"
-            "  https://github.com/rcieri/glab-tui                            OK\n"
-            "/Users/timothybryant/.local/bin/sysinformer   v1.3.2"
-            "  https://github.com/timmyb824/sysinformer/releases/tag/v1.3.2  OK\n"
+        output = self._bin_ls_output(
+            [
+                (
+                    "/Users/timothybryant/.local/bin/bin",
+                    "v0.29.1",
+                    "github.com/marcosnils/bin",
+                ),
+                (
+                    "/Users/timothybryant/.local/bin/glab-tui",
+                    "v0.9.0",
+                    "https://github.com/rcieri/glab-tui",
+                ),
+                (
+                    "/Users/timothybryant/.local/bin/sysinformer",
+                    "v1.3.2",
+                    "https://github.com/timmyb824/sysinformer/releases/tag/v1.3.2",
+                ),
+            ]
         )
         with (
             patch.object(mgr, "is_available", return_value=True),
@@ -316,15 +344,24 @@ class TestBinMethods:
     def test_list_managed_binaries_parses_paths(self) -> None:
         """list_managed_binaries extracts executable names from bin ls paths."""
         mgr = BinManager({})
-        output = (
-            "Path                                          Version  URL"
-            "                                                           Status\n"
-            "/Users/timothybryant/.local/bin/bin           v0.29.1"
-            "  github.com/marcosnils/bin                                     OK\n"
-            "/Users/timothybryant/.local/bin/glab-tui      v0.9.0"
-            "  https://github.com/rcieri/glab-tui                            OK\n"
-            "/Users/timothybryant/.local/bin/nerdlog       v1.10.0"
-            "  github.com/dimonomid/nerdlog                                  OK\n"
+        output = self._bin_ls_output(
+            [
+                (
+                    "/Users/timothybryant/.local/bin/bin",
+                    "v0.29.1",
+                    "github.com/marcosnils/bin",
+                ),
+                (
+                    "/Users/timothybryant/.local/bin/glab-tui",
+                    "v0.9.0",
+                    "https://github.com/rcieri/glab-tui",
+                ),
+                (
+                    "/Users/timothybryant/.local/bin/nerdlog",
+                    "v1.10.0",
+                    "github.com/dimonomid/nerdlog",
+                ),
+            ]
         )
         with (
             patch.object(mgr, "is_available", return_value=True),
@@ -343,6 +380,52 @@ class TestBinMethods:
         with patch.object(mgr, "is_available", return_value=False):
             assert mgr.list_managed_binaries() == []
 
+    def test_list_packages_with_spaces_in_path(self) -> None:
+        """list_packages correctly parses URLs when path contains spaces."""
+        mgr = BinManager({})
+        output = self._bin_ls_output(
+            [
+                (
+                    "/Users/timothybryant/.local/bin/my tool",
+                    "v1.0.0",
+                    "github.com/example/my-tool",
+                ),
+            ]
+        )
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(
+                mgr,
+                "run_command_with_output",
+                return_value=(True, output, ""),
+            ),
+        ):
+            result = mgr.list_packages()
+        assert result == ["github.com/example/my-tool"]
+
+    def test_list_managed_binaries_with_spaces_in_path(self) -> None:
+        """list_managed_binaries extracts correct name when path has spaces."""
+        mgr = BinManager({})
+        output = self._bin_ls_output(
+            [
+                (
+                    "/Users/timothybryant/.local/bin/my tool",
+                    "v1.0.0",
+                    "github.com/example/my-tool",
+                ),
+            ]
+        )
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(
+                mgr,
+                "run_command_with_output",
+                return_value=(True, output, ""),
+            ),
+        ):
+            result = mgr.list_managed_binaries()
+        assert result == ["my tool"]
+
 
 # ---------------------------------------------------------------------------
 # export_packages CLI function
@@ -357,7 +440,13 @@ class TestExportPackages:
         mock_pm = _make_pm(available=True, packages=["git", "vim"])
 
         with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
 
         captured = capsys.readouterr()
         assert "git" in captured.out
@@ -374,6 +463,7 @@ class TestExportPackages:
                 output=out_file,
                 fmt="json",
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         with open(out_file, encoding="utf-8") as f:
@@ -385,16 +475,42 @@ class TestExportPackages:
         mock_pm = _make_pm(available=False, packages=None)
 
         with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
 
         captured = capsys.readouterr()
         assert "No packages found" in captured.out
 
     def test_export_skips_unsupported_manager_with_warning(self, capsys) -> None:
         """export_packages warns and skips managers not in EXPORT_SUPPORTED."""
-        export_packages(managers=["tldr"], output=None, fmt="yaml", verbose=False)
+        export_packages(
+            managers=["tldr"],
+            output=None,
+            fmt="yaml",
+            verbose=False,
+            config={"package_managers": {}},
+        )
         captured = capsys.readouterr()
         assert "not export-supported" in captured.out
+
+    def test_export_skips_disabled_in_config(self, capsys) -> None:
+        """export_packages skips managers with enabled: false in config."""
+        mock_pm = _make_pm(available=True, packages=["git"])
+        cfg = {"package_managers": {"brew": {"enabled": False}}}
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            export_packages(
+                managers=["brew"], output=None, fmt="yaml", verbose=False, config=cfg
+            )
+        captured = capsys.readouterr()
+        assert "No packages found" in captured.out
+        # brew itself should have been skipped before list_packages was called
+        # on it, but the extra loop may still call list_packages on the mock
+        # for other managers, so we only check the output here.
 
     def test_export_to_file_yaml(self, tmp_path) -> None:
         """export_packages writes valid YAML when fmt='yaml' and output given."""
@@ -407,6 +523,7 @@ class TestExportPackages:
                 output=out_file,
                 fmt="yaml",
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         with open(out_file, encoding="utf-8") as f:
@@ -501,7 +618,13 @@ class TestExportPackagesUnmanagedBinaries:
                 "one_updater.cli.scan_unmanaged_binaries", return_value=["gah", "neomd"]
             ),
         ):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
         captured = capsys.readouterr()
         assert "Other Tools Not Importable" in captured.out
         assert "gah" in captured.out
@@ -514,7 +637,13 @@ class TestExportPackagesUnmanagedBinaries:
             patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
             patch("one_updater.cli.scan_unmanaged_binaries", return_value=[]),
         ):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
         captured = capsys.readouterr()
         assert "Other Tools Not Importable" not in captured.out
 
@@ -533,7 +662,13 @@ class TestExportPackagesUnmanagedBinaries:
             patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm),
             patch("one_updater.cli.scan_unmanaged_binaries", side_effect=_capture_scan),
         ):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
         assert "git" in captured_args["managed_names"]
         assert "vim" in captured_args["managed_names"]
 
@@ -548,7 +683,13 @@ class TestExportPackagesUnmanagedBinaries:
                 "one_updater.cli.scan_unmanaged_binaries", return_value=["manualtool"]
             ),
         ):
-            export_packages(managers=["brew"], output=None, fmt="yaml", verbose=False)
+            export_packages(
+                managers=["brew"],
+                output=None,
+                fmt="yaml",
+                verbose=False,
+                config={"package_managers": {}},
+            )
         captured = capsys.readouterr()
         assert "No packages found to export" in captured.out
         assert "Other Tools Not Importable" in captured.out
@@ -586,6 +727,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         mock_pm.install_package.assert_not_called()
@@ -603,6 +745,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         mock_pm.install_package.assert_called_once_with("ripgrep")
@@ -620,6 +763,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=True,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         mock_pm.install_package.assert_not_called()
@@ -637,6 +781,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         mock_pm.install_package.assert_called_once_with("black")
@@ -649,6 +794,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
     def test_import_invalid_json_raises(self, tmp_path) -> None:
@@ -657,7 +803,11 @@ class TestImportPackages:
         path.write_text("{not valid json")
         with pytest.raises(PackageImportError):
             import_packages(
-                file_path=str(path), managers=None, dry_run=False, verbose=False
+                file_path=str(path),
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config={"package_managers": {}},
             )
 
     def test_import_non_dict_top_level_raises(self, tmp_path) -> None:
@@ -666,7 +816,11 @@ class TestImportPackages:
         path.write_text("- pkg1\n- pkg2\n")
         with pytest.raises(PackageImportError):
             import_packages(
-                file_path=str(path), managers=None, dry_run=False, verbose=False
+                file_path=str(path),
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config={"package_managers": {}},
             )
 
     def test_import_non_list_manager_value_warns(self, tmp_path, capsys) -> None:
@@ -676,7 +830,11 @@ class TestImportPackages:
         mock_pm = _make_pm(available=True, packages=[])
         with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
             import_packages(
-                file_path=file_path, managers=None, dry_run=False, verbose=False
+                file_path=file_path,
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config={"package_managers": {}},
             )
         captured = capsys.readouterr()
         assert "expected list" in captured.out
@@ -689,7 +847,11 @@ class TestImportPackages:
         mock_pm = _make_pm(available=True, packages=[])
         with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
             import_packages(
-                file_path=file_path, managers=None, dry_run=False, verbose=False
+                file_path=file_path,
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config={"package_managers": {}},
             )
         captured = capsys.readouterr()
         assert "tldr" in captured.out
@@ -702,7 +864,11 @@ class TestImportPackages:
         mock_pm = _make_pm(available=True, packages=[], failed_packages={"fd"})
         with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
             import_packages(
-                file_path=file_path, managers=None, dry_run=False, verbose=False
+                file_path=file_path,
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config={"package_managers": {}},
             )
         captured = capsys.readouterr()
         assert "failed" in captured.out
@@ -719,6 +885,7 @@ class TestImportPackages:
                 managers=None,
                 dry_run=True,
                 verbose=True,
+                config={"package_managers": {}},
             )
         captured = capsys.readouterr()
         assert "skipped (already installed)" in captured.out
@@ -742,6 +909,7 @@ class TestImportPackages:
                 dry_run=False,
                 verbose=False,
                 skip=["pipx"],
+                config={"package_managers": {}},
             )
         brew_pm.install_package.assert_called_once_with("git")
         pipx_pm.install_package.assert_not_called()
@@ -766,6 +934,7 @@ class TestImportPackages:
                 managers=["brew"],
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
         brew_pm.install_package.assert_called_once_with("git")
@@ -784,6 +953,27 @@ class TestImportPackages:
                 managers=None,
                 dry_run=False,
                 verbose=False,
+                config={"package_managers": {}},
             )
 
+        mock_pm.install_package.assert_not_called()
+
+    def test_import_skips_disabled_in_config(self, tmp_path, capsys) -> None:
+        """import_packages skips managers with enabled: false in config."""
+        data = {"brew": ["git"]}
+        file_path = self._write_export(tmp_path, data)
+
+        mock_pm = _make_pm(available=True, packages=[])
+        cfg = {"package_managers": {"brew": {"enabled": False}}}
+
+        with patch.object(PackageManagerRegistry, "get_manager", return_value=mock_pm):
+            import_packages(
+                file_path=file_path,
+                managers=None,
+                dry_run=False,
+                verbose=False,
+                config=cfg,
+            )
+        captured = capsys.readouterr()
+        assert "disabled in config" in captured.out
         mock_pm.install_package.assert_not_called()

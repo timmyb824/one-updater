@@ -254,11 +254,13 @@ def export_packages(
     output: Optional[str],
     fmt: str,
     verbose: bool,
+    config: dict,
     skip: Optional[list[str]] = None,
 ) -> None:
     # sourcery skip: low-code-quality
     """Export installed packages grouped by package manager to YAML or JSON."""
     supported = PackageManagerRegistry.EXPORT_SUPPORTED
+    pkg_cfg = config.get("package_managers", {})
     targets = sorted([m for m in managers if m in supported] if managers else supported)
     if skip:
         targets = [m for m in targets if m not in skip]
@@ -269,6 +271,10 @@ def export_packages(
     result: dict[str, list[str]] = {}
     managed_binaries: set[str] = set()
     for name in targets:
+        if not pkg_cfg.get(name, {}).get("enabled", True):
+            if verbose:
+                console.print(f"[yellow]! {name} disabled in config, skipping[/yellow]")
+            continue
         try:
             pm = PackageManagerRegistry.get_manager(name, {"enabled": True})
         except ValueError as e:
@@ -316,6 +322,8 @@ def export_packages(
     for pm_name in PackageManagerRegistry.EXPORT_SUPPORTED:
         if pm_name in targets_set:
             continue
+        if not pkg_cfg.get(pm_name, {}).get("enabled", True):
+            continue
         with contextlib.suppress(Exception):
             extra_pm = PackageManagerRegistry.get_manager(pm_name, {"enabled": True})
             if extra_pm.is_available():
@@ -337,10 +345,12 @@ def import_packages(
     managers: Optional[list[str]],
     dry_run: bool,
     verbose: bool,
+    config: dict,
     skip: Optional[list[str]] = None,
 ) -> None:
     # sourcery skip: low-code-quality
     """Read an export file and install all packages not already present."""
+    pkg_cfg = config.get("package_managers", {})
     if not os.path.exists(file_path):
         error_console.print(f"[red]Error: File not found: {file_path}[/red]")
         raise PackageImportError(f"File not found: {file_path}")
@@ -393,6 +403,9 @@ def import_packages(
     summary: dict[str, dict[str, int]] = {}
 
     for name in targets:
+        if not pkg_cfg.get(name, {}).get("enabled", True):
+            console.print(f"[yellow]! {name} disabled in config, skipping[/yellow]")
+            continue
         packages = data[name]
         if not isinstance(packages, list):
             console.print(f"[yellow]! {name}: expected list, skipping[/yellow]")
@@ -670,7 +683,7 @@ https://github.com/timmyb824/one-updater
         logger.debug(f"Command line arguments: {args}")
 
         # Load config file if needed
-        if args.command not in ("init", "export", "import"):
+        if args.command != "init":
             config_path = os.path.abspath(
                 os.path.expanduser(args.config or get_default_config_path())
             )
@@ -702,6 +715,7 @@ https://github.com/timmyb824/one-updater
                 args.output,
                 args.format,
                 args.verbose,
+                config,
                 args.skip,
             )
         elif args.command == "import":
@@ -710,6 +724,7 @@ https://github.com/timmyb824/one-updater
                 args.manager,
                 args.dry_run,
                 args.verbose,
+                config,
                 args.skip,
             )
         else:

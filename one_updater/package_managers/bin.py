@@ -1,11 +1,9 @@
 """bin package manager implementation."""
 
+import operator
 import os
 
 from .base import PackageManager
-
-# Minimum number of columns expected in ``bin ls`` output (Path, Version, URL)
-_MIN_LS_COLUMNS = 3
 
 
 class BinManager(PackageManager):
@@ -28,6 +26,36 @@ class BinManager(PackageManager):
         # bin update handles both update and upgrade
         return self.run_command(self.commands.get("upgrade", ["bin", "update"]))
 
+    @staticmethod
+    def _parse_bin_ls(stdout: str) -> list[dict[str, str]]:
+        """Parse fixed-width ``bin ls`` table output into row dicts.
+
+        Uses the header line to determine column start positions so that
+        paths containing spaces are handled correctly.
+        """
+        lines = stdout.strip().splitlines()
+        if not lines:
+            return []
+        header = lines[0]
+        # Find start position of each known column header
+        columns: list[tuple[str, int]] = []
+        for name in ("Path", "Version", "URL", "Status"):
+            pos = header.find(name)
+            if pos == -1:
+                return []
+            columns.append((name, pos))
+        columns.sort(key=operator.itemgetter(1))
+        rows: list[dict[str, str]] = []
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            row: dict[str, str] = {}
+            for i, (name, pos) in enumerate(columns):
+                end = columns[i + 1][1] if i + 1 < len(columns) else len(line)
+                row[name] = line[pos:end].strip()
+            rows.append(row)
+        return rows
+
     def list_packages(self) -> list[str] | None:
         """Return all binary install URLs managed by bin.
 
@@ -39,15 +67,7 @@ class BinManager(PackageManager):
         ok, stdout, _ = self.run_command_with_output(["bin", "ls"])
         if not ok or not stdout:
             return []
-        packages: list[str] = []
-        for line in stdout.strip().splitlines():
-            parts = line.split()
-            # Skip header line and lines with fewer than 3 columns
-            if len(parts) < _MIN_LS_COLUMNS or parts[0] == "Path":
-                continue
-            # URL is the third column (index 2)
-            packages.append(parts[2])
-        return packages
+        return [row["URL"] for row in self._parse_bin_ls(stdout) if row.get("URL")]
 
     def install_package(self, name: str) -> bool:
         """Install a binary with bin by URL.
@@ -79,11 +99,8 @@ class BinManager(PackageManager):
         ok, stdout, _ = self.run_command_with_output(["bin", "ls"])
         if not ok or not stdout:
             return []
-        binaries: list[str] = []
-        for line in stdout.strip().splitlines():
-            parts = line.split()
-            if len(parts) < _MIN_LS_COLUMNS or parts[0] == "Path":
-                continue
-            # Path is the first column; extract the executable name
-            binaries.append(os.path.basename(parts[0]))
-        return binaries
+        return [
+            os.path.basename(row["Path"])
+            for row in self._parse_bin_ls(stdout)
+            if row.get("Path")
+        ]
