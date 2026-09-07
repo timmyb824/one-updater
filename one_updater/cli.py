@@ -267,6 +267,7 @@ def export_packages(
             console.print(f"[yellow]! {m} is not export-supported, skipping[/yellow]")
 
     result: dict[str, list[str]] = {}
+    managed_binaries: set[str] = set()
     for name in targets:
         try:
             pm = PackageManagerRegistry.get_manager(name, {"enabled": True})
@@ -278,6 +279,8 @@ def export_packages(
             if verbose:
                 console.print(f"[yellow]! {name} not available, skipping[/yellow]")
             continue
+
+        managed_binaries.update(pm.list_managed_binaries())
 
         packages = pm.list_packages()
         if packages is None:
@@ -306,7 +309,7 @@ def export_packages(
             console.print("\n")
             console.print(text)
 
-    managed_names: set[str] = set()
+    managed_names: set[str] = set(managed_binaries)
     for pkgs in result.values():
         managed_names.update(pkgs)
     targets_set = set(targets)
@@ -318,6 +321,7 @@ def export_packages(
             if extra_pm.is_available():
                 if extra_pkgs := extra_pm.list_packages():
                     managed_names.update(extra_pkgs)
+                managed_names.update(extra_pm.list_managed_binaries())
     if unmanaged := scan_unmanaged_binaries(managed_names):
         console.print("\n[bold yellow]Other Tools Not Importable:[/bold yellow]")
         console.print(

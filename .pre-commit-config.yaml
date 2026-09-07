@@ -5,7 +5,7 @@ repos:
     -   id: pre-commit-update
 
 -   repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.44.0
+    rev: v1.45.0
     hooks:
     -   id: sourcery
         # * review only changed lines:
@@ -19,14 +19,14 @@ repos:
         language_version: python3
 
 -   repo: https://github.com/pycqa/isort
-    rev: 8.0.1
+    rev: 9.0.1
     hooks:
     -   id: isort
         args: ["--profile", "black"]
 
 -   repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
-    rev: 0.12.5
+    rev: 0.12.10
     hooks:
     -   id: uv-lock
     -   id: uv-export
@@ -54,7 +54,7 @@ repos:
     -   id: ripsecrets
 
 -   repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.97.0
+    rev: v3.97.4
     hooks:
     -   id: trufflehog
         name: TruffleHog

@@ -50,7 +50,7 @@ class PackageManager(ABC):
                     check=True,
                 )
                 if result.stdout:
-                    logging.info(
+                    logging.debug(
                         f"INFO - stdout from {' '.join(command)}:\n{result.stdout}"
                     )
 
@@ -142,3 +142,13 @@ class PackageManager(ABC):
         Returns False if unsupported.
         """
         return False
+
+    def list_managed_binaries(self) -> list[str]:
+        """Return executable names this manager places in bin directories.
+
+        Used by ``scan_unmanaged_binaries`` to filter out binaries that are
+        managed by a package manager but whose package name differs from the
+        executable name (e.g. ``bin`` stores URLs but installs executables).
+        Defaults to an empty list; override when needed.
+        """
+        return []

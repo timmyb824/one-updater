@@ -12,6 +12,7 @@ from one_updater.cli import (
     import_packages,
     scan_unmanaged_binaries,
 )
+from one_updater.package_managers.bin import BinManager
 from one_updater.package_managers.brew import HomebrewManager
 from one_updater.package_managers.cargo import CargoManager
 from one_updater.package_managers.pipx import PipxManager
@@ -212,6 +213,135 @@ class TestCargoMethods:
         ):
             assert mgr.install_package("bat") is True
             mock_run.assert_called_once_with(["cargo", "install", "bat"])
+
+
+class TestBinMethods:
+    """Unit tests for BinManager export/import methods."""
+
+    def test_list_packages_unavailable(self) -> None:
+        """list_packages returns None when bin is not available."""
+        mgr = BinManager({})
+        with patch.object(mgr, "is_available", return_value=False):
+            assert mgr.list_packages() is None
+
+    def test_list_packages_parses_ls_output(self) -> None:
+        """list_packages extracts URLs from bin ls table output."""
+        mgr = BinManager({})
+        output = (
+            "Path                                          Version  URL"
+            "                                                           Status\n"
+            "/Users/timothybryant/.local/bin/bin           v0.29.1"
+            "  github.com/marcosnils/bin                                     OK\n"
+            "/Users/timothybryant/.local/bin/glab-tui      v0.9.0"
+            "  https://github.com/rcieri/glab-tui                            OK\n"
+            "/Users/timothybryant/.local/bin/sysinformer   v1.3.2"
+            "  https://github.com/timmyb824/sysinformer/releases/tag/v1.3.2  OK\n"
+        )
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(
+                mgr,
+                "run_command_with_output",
+                return_value=(True, output, ""),
+            ),
+        ):
+            result = mgr.list_packages()
+        assert result == [
+            "github.com/marcosnils/bin",
+            "https://github.com/rcieri/glab-tui",
+            "https://github.com/timmyb824/sysinformer/releases/tag/v1.3.2",
+        ]
+
+    def test_list_packages_command_failure_returns_empty(self) -> None:
+        """list_packages returns [] when run_command_with_output fails."""
+        mgr = BinManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(False, "", "")),
+        ):
+            assert mgr.list_packages() == []
+
+    def test_list_packages_empty_stdout_returns_empty(self) -> None:
+        """list_packages returns [] when stdout is empty."""
+        mgr = BinManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command_with_output", return_value=(True, "", "")),
+        ):
+            assert mgr.list_packages() == []
+
+    def test_install_package_calls_bin_install(self) -> None:
+        """install_package delegates to bin install <url>."""
+        mgr = BinManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(mgr, "run_command", return_value=True) as mock_run,
+        ):
+            assert mgr.install_package("github.com/marcosnils/bin") is True
+            mock_run.assert_called_once_with(
+                ["bin", "install", "github.com/marcosnils/bin"]
+            )
+
+    def test_install_package_unavailable_returns_false(self) -> None:
+        """install_package returns False when bin is not available."""
+        mgr = BinManager({})
+        with (
+            patch.object(mgr, "is_available", return_value=False),
+            patch.object(mgr, "run_command") as mock_run,
+        ):
+            result = mgr.install_package("github.com/marcosnils/bin")
+        assert result is False
+        mock_run.assert_not_called()
+
+    def test_is_package_installed_true(self) -> None:
+        """is_package_installed returns True when URL is in list_packages."""
+        mgr = BinManager({})
+        with patch.object(
+            mgr, "list_packages", return_value=["github.com/marcosnils/bin"]
+        ):
+            assert mgr.is_package_installed("github.com/marcosnils/bin") is True
+
+    def test_is_package_installed_false(self) -> None:
+        """is_package_installed returns False when URL is not in list_packages."""
+        mgr = BinManager({})
+        with patch.object(mgr, "list_packages", return_value=[]):
+            assert mgr.is_package_installed("github.com/marcosnils/bin") is False
+
+    def test_is_package_installed_none_returns_false(self) -> None:
+        """is_package_installed returns False when list_packages is None."""
+        mgr = BinManager({})
+        with patch.object(mgr, "list_packages", return_value=None):
+            assert mgr.is_package_installed("github.com/marcosnils/bin") is False
+
+    def test_list_managed_binaries_parses_paths(self) -> None:
+        """list_managed_binaries extracts executable names from bin ls paths."""
+        mgr = BinManager({})
+        output = (
+            "Path                                          Version  URL"
+            "                                                           Status\n"
+            "/Users/timothybryant/.local/bin/bin           v0.29.1"
+            "  github.com/marcosnils/bin                                     OK\n"
+            "/Users/timothybryant/.local/bin/glab-tui      v0.9.0"
+            "  https://github.com/rcieri/glab-tui                            OK\n"
+            "/Users/timothybryant/.local/bin/nerdlog       v1.10.0"
+            "  github.com/dimonomid/nerdlog                                  OK\n"
+        )
+        with (
+            patch.object(mgr, "is_available", return_value=True),
+            patch.object(
+                mgr,
+                "run_command_with_output",
+                return_value=(True, output, ""),
+            ),
+        ):
+            result = mgr.list_managed_binaries()
+        assert result == ["bin", "glab-tui", "nerdlog"]
+
+    def test_list_managed_binaries_unavailable(self) -> None:
+        """list_managed_binaries returns [] when bin is not available."""
+        mgr = BinManager({})
+        with patch.object(mgr, "is_available", return_value=False):
+            assert mgr.list_managed_binaries() == []
 
 
 # ---------------------------------------------------------------------------
