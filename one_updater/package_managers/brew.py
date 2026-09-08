@@ -50,7 +50,7 @@ class HomebrewManager(PackageManager):
 
         return success
 
-    def list_packages(self) -> Optional[list[str]]:
+    def list_packages(self) -> list[str] | None:
         """Return all installed Homebrew formulae and casks."""
         if not self.is_available():
             return None

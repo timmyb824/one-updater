@@ -3,7 +3,6 @@
 import logging
 import os
 import subprocess
-from typing import Optional
 
 from .base import PackageManager
 
@@ -46,7 +45,7 @@ class BasherManager(PackageManager):
             success = False
         return success
 
-    def list_packages(self) -> Optional[list[str]]:
+    def list_packages(self) -> list[str] | None:
         """Return all basher-installed packages as user/package strings."""
         if not self.is_available():
             return None

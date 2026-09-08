@@ -55,6 +55,7 @@ class PackageManagerRegistry:
         {
             "apt",
             "basher",
+            "bin",
             "brew",
             "cargo",
             "dnf",
